@@ -357,50 +357,53 @@ def run_single_player_game_online(rfile, wfile):
         except ValueError as e:
             send(f"Invalid input: {e}")
 
-def run_dual_player_game_online(rfile, wfile):
+def run_dual_player_game_online(player1, player2):
     """
     A test harness for running the single-player game with I/O redirected to socket file objects.
     Expects:
-      - rfile: file-like object to .readline() from client
-      - wfile: file-like object to .write() back to client
+      - player1 and player2: Player object which contains self variables of: 
+                                                            Player.connection   :   Python Socket object of the socket on the server connecting to the client
+                                                            Player.address      :   The address of the player client as a tuple eg. ('127.0.0.1', 50577)
+                                                            Player.rfile        :   the read file of the player 
+                                                            Player.wfile        :   the write file of the player 
+                                                                    the read and write files work in the same way as open(), check https://docs.python.org/3/library/socket.html for more info
     
-    #####
-    NOTE: This function is (intentionally) currently somewhat "broken", which will be evident if you try and play the game via server/client.
-    You can use this as a starting point, or write your own.
-    #####
+    
     """
-    def send(msg):
-        wfile.write(msg + '\n')
-        wfile.flush()
+    def send(player, msg): # this will likely need to be more sophisticated to avoid mismatching 
+        player.wfile.write(msg + '\n')
+        player.wfile.flush()
 
-    def send_board(board):
-        wfile.write("GRID\n")
-        wfile.write("  " + " ".join(str(i + 1).rjust(2) for i in range(board.size)) + '\n')
+    def send_board(player, board):
+        player.wfile.write("GRID\n")
+        player.wfile.write("  " + " ".join(str(i + 1).rjust(2) for i in range(board.size)) + '\n')
         for r in range(board.size):
             row_label = chr(ord('A') + r)
             row_str = " ".join(board.display_grid[r][c] for c in range(board.size))
-            wfile.write(f"{row_label:2} {row_str}\n")
-        wfile.write('\n')
-        wfile.flush()
+            player.wfile.write(f"{row_label:2} {row_str}\n")
+        player.wfile.write('\n')
+        player.wfile.flush()
 
-    def recv():
-        return rfile.readline().strip()
+    def recv(player):
+        return player.rfile.readline().strip()
 
-    player1_board = Board(BOARD_SIZE)
-    player2_board = Board(BOARD_SIZE)
+    player1.board = Board(BOARD_SIZE)
+    player2.board = Board(BOARD_SIZE)
 
     #TODO Allow players to place their own ships
-    player1_board.place_ships_randomly(SHIPS)
-    player2_board.place_ships_randomly(SHIPS)
+    player1.board.place_ships_randomly(SHIPS)
+    player2.board.place_ships_randomly(SHIPS)
 
     send("Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
 
     moves = 0
 
+    current_player = player1
 
     ##TODO Game logic will need to be rewritten for 2 players
     while True:
-        send_board(board)
+
+        send_board(current_player, current_player.board)
         send("Enter coordinate to fire at (e.g. B5):")
         guess = recv()
         if guess.lower() == 'quit':
@@ -425,6 +428,8 @@ def run_dual_player_game_online(rfile, wfile):
                 send("MISS!")
             elif result == 'already_shot':
                 send("You've already fired at that location.")
+            #send over token 
+            send("OVER")   
         except ValueError as e:
             send(f"Invalid input: {e}")
 

@@ -24,23 +24,22 @@ players = [] # list of all the Player class objects
 player_threads = []
 
 
-
+#Class to hold all data for each player
 class Player:
     def __init__(self, connection, address):
         self.connection = connection
         self.address = address
+        self.game_state = "WAITING"
     
     def set_files(self, rfile, wfile):
         self.rfile = rfile
         self.wfile = wfile
 
- 
+    def set_board(self, BOARD):
+        self.board = BOARD
 
-
-def main():
-    print("[INFO] Making Socket")
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-    
+def setup(s):
+    #s stands for socket 
     print(f"[INFO] Server listening on {HOST}:{PORT}")
     s.bind((HOST, PORT)) # creates a pseudo server on this address
         
@@ -67,12 +66,49 @@ def main():
         print(f"First Player = {players[0].address}")
         print(f"Second Player = {players[1].address}")
 
-    print("Begin game")
+def listen_for_player_messages(player):
+#     """Continuously receive and display messages from the server"""
+#     while running:
+#         line = rfile.readline()
+#         if not line:
+#             print("[INFO] Server disconnected.")
+#             break
+#         # Process and display the message
+    running = True
+    while running:
+        line = player.rfile.readline()
+        if not line:
+            print(f"Player {player.address} disconnected")
+            break
+        print(line)
 
+        
+
+def main():
+
+    ##################
+    # Set up the socket and establish connections with clients
+    ##################
+    print("[INFO] Making Socket")
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+    setup(s)
     
 
-    while True:
-        pass
+    print("Begin game")
+
+
+    # Make a thread to listen for each player's incoming messages
+    player1_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[0],))
+    player2_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[1],))
+
+    
+    player1_thread.start()
+    player2_thread.start()
+
+    # Use THIS main thread to process commands and send messages back to players
+
+
+    
     
 
     

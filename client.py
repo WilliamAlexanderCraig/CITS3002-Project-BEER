@@ -22,11 +22,16 @@ PORT = 8081
 #
 # import threading
 
+import threading
+
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         rfile = s.makefile('r')
         wfile = s.makefile('w')
+
+        # my thought is just to separate 
+
 
         try:
             while True:
@@ -34,6 +39,11 @@ def main():
                 # reading a message and sending input, which doesn't work when
                 # the server sends multiple messages in sequence
                 
+                user_input = input(">> ")
+                wfile.write(user_input + '\n')
+                wfile.flush()
+
+
                 line = rfile.readline()
                 if not line:
                     print("[INFO] Server disconnected.")
@@ -49,13 +59,22 @@ def main():
                         if not board_line or board_line.strip() == "":
                             break
                         print(board_line.strip())
-                else:
-                    # Normal message
-                    print(line)
+                
+                #Wait for "OVER" Message
+                # Normal message
+                #elif(line != "OVER"):
+                    #print(line) # i want to see the difference between line and line.strip()
+                    #print(line.strip())
+    
+                else:# "OVER token received"
+                    user_input = input(">> ")
+                    wfile.write(user_input + '\n')
+                    wfile.flush()
+                    
 
-                user_input = input(">> ")
-                wfile.write(user_input + '\n')
-                wfile.flush()
+                
+
+                
 
         except KeyboardInterrupt:
             print("\n[INFO] Client exiting.")
