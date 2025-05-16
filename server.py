@@ -13,21 +13,47 @@ However, if you want to support multiple clients (i.e. progress through further 
 import socket
 from battleship import run_single_player_game_online
 
+import threading
+
 HOST = '127.0.0.1'
-PORT = 5000
+PORT = 8081 #port 5000 was taken on my pc for some reason
+
+num_players = 2 # flag to see if there are two players with active connections
+
+players = [] # list of all the Player class objects
+
+class Player:
+    def __init__(self, connection, address):
+        self.connection = connection
+        self.address = address
+    
+    def set_files(self, rfile, wfile):
+        self.rfile = rfile
+        self.wfile = wfile
 
 def main():
     print(f"[INFO] Server listening on {HOST}:{PORT}")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen(2)
-        conn, addr = s.accept()
-        print(f"[INFO] Client connected from {addr}")
-        with conn:
-            rfile = conn.makefile('r')
-            wfile = conn.makefile('w')
-            run_single_player_game_online(rfile, wfile)
-        print("[INFO] Client disconnected.")
+        
+        s.bind((HOST, PORT)) # creates a pseudo server on this address
+        
+        #loop to get connections 
+        for player_connection in range(num_players):
+            s.listen(1) # open for 1 availiable connection
+            
+            #wait until a player connects
+            conn, addr = s.accept()
+            newPlayer = Player(conn, addr) # make a new player object to store all the data about this connection
+            print(f"[INFO] Client {player_connection} connected from {addr}")
+            with conn:
+                rfile = conn.makefile('r')
+                wfile = conn.makefile('w')
+                newPlayer.set_files(rfile, wfile)# add the rfile and wfile to the player object 
+            #run_single_player_game_online(rfile, wfile)
+        
+    print("[INFO] Client disconnected.")
+
+    
 
 # HINT: For multiple clients, you'd need to:
 # 1. Accept connections in a loop
