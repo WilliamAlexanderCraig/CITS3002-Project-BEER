@@ -357,6 +357,77 @@ def run_single_player_game_online(rfile, wfile):
         except ValueError as e:
             send(f"Invalid input: {e}")
 
+def run_dual_player_game_online(rfile, wfile):
+    """
+    A test harness for running the single-player game with I/O redirected to socket file objects.
+    Expects:
+      - rfile: file-like object to .readline() from client
+      - wfile: file-like object to .write() back to client
+    
+    #####
+    NOTE: This function is (intentionally) currently somewhat "broken", which will be evident if you try and play the game via server/client.
+    You can use this as a starting point, or write your own.
+    #####
+    """
+    def send(msg):
+        wfile.write(msg + '\n')
+        wfile.flush()
+
+    def send_board(board):
+        wfile.write("GRID\n")
+        wfile.write("  " + " ".join(str(i + 1).rjust(2) for i in range(board.size)) + '\n')
+        for r in range(board.size):
+            row_label = chr(ord('A') + r)
+            row_str = " ".join(board.display_grid[r][c] for c in range(board.size))
+            wfile.write(f"{row_label:2} {row_str}\n")
+        wfile.write('\n')
+        wfile.flush()
+
+    def recv():
+        return rfile.readline().strip()
+
+    player1_board = Board(BOARD_SIZE)
+    player2_board = Board(BOARD_SIZE)
+
+    #TODO Allow players to place their own ships
+    player1_board.place_ships_randomly(SHIPS)
+    player2_board.place_ships_randomly(SHIPS)
+
+    send("Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
+
+    moves = 0
+
+
+    ##TODO Game logic will need to be rewritten for 2 players
+    while True:
+        send_board(board)
+        send("Enter coordinate to fire at (e.g. B5):")
+        guess = recv()
+        if guess.lower() == 'quit':
+            send("Thanks for playing. Goodbye.")
+            return
+
+        try:
+            row, col = parse_coordinate(guess)
+            result, sunk_name = board.fire_at(row, col)
+            moves += 1
+
+            if result == 'hit':
+                if sunk_name:
+                    send(f"HIT! You sank the {sunk_name}!")
+                else:
+                    send("HIT!")
+                if board.all_ships_sunk():
+                    send_board(board)
+                    send(f"Congratulations! You sank all ships in {moves} moves.")
+                    return
+            elif result == 'miss':
+                send("MISS!")
+            elif result == 'already_shot':
+                send("You've already fired at that location.")
+        except ValueError as e:
+            send(f"Invalid input: {e}")
+
 if __name__ == "__main__":
     # Optional: run this file as a script to test single-player mode
     run_single_player_game_locally()
