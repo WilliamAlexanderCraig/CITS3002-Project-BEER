@@ -367,20 +367,29 @@ def run_dual_player_game_online(player1, player2):
                                                             Player.rfile        :   the read file of the player 
                                                             Player.wfile        :   the write file of the player 
                                                                     the read and write files work in the same way as open(), check https://docs.python.org/3/library/socket.html for more info
-    
+                                                            Player.board        :   the players board
     
     """
     def send(player, msg): # this will likely need to be more sophisticated to avoid mismatching 
         player.wfile.write(msg + '\n')
         player.wfile.flush()
 
-    def send_board(player, board):
+    def send_board(player, board, hidden):
         player.wfile.write("GRID\n")
-        player.wfile.write("  " + " ".join(str(i + 1).rjust(2) for i in range(board.size)) + '\n')
-        for r in range(board.size):
-            row_label = chr(ord('A') + r)
-            row_str = " ".join(board.display_grid[r][c] for c in range(board.size))
-            player.wfile.write(f"{row_label:2} {row_str}\n")
+        player.wfile.write("  " + " ".join(str(i + 1).rjust(2) for i in range(player.board.size)) + '\n')
+        
+        if hidden == True:
+            for r in range(player.board.size):
+                row_label = chr(ord('A') + r)
+                row_str = " ".join(player.board.hidden_grid[r][c] for c in range(player.board.size))
+                player.wfile.write(f"{row_label:2} {row_str}\n")
+        else:
+            for r in range(player.board.size):
+                row_label = chr(ord('A') + r)
+                row_str = " ".join(player.board.display_grid[r][c] for c in range(player.board.size))
+                player.wfile.write(f"{row_label:2} {row_str}\n")
+        
+        
         player.wfile.write('\n')
         player.wfile.flush()
 
@@ -394,44 +403,78 @@ def run_dual_player_game_online(player1, player2):
     player1.board.place_ships_randomly(SHIPS)
     player2.board.place_ships_randomly(SHIPS)
 
-    send("Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
+    send(player1, "Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
+    send(player2, "Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
 
     moves = 0
 
     current_player = player1
+    waiting_player = player2
 
     ##TODO Game logic will need to be rewritten for 2 players
     while True:
 
-        send_board(current_player, current_player.board)
-        send("Enter coordinate to fire at (e.g. B5):")
-        guess = recv()
+        successful_turn = False
+
+        #send the state of your board and of the opposite players board
+        send(current_player, "\nThis is the state of your board")
+        send_board(current_player, current_player, False) #send unhidden version 
+        send(current_player, "\ngThis is the state of your opponents board")
+        send_board(current_player, waiting_player, True) #send hidden version
+        send(current_player, "Enter coordinate to fire at (e.g. B5):")
+        send(current_player, "OVER")
+       
+        #wait for player response
+        guess = recv(current_player)
+
+        #if quit then quit
         if guess.lower() == 'quit':
             send("Thanks for playing. Goodbye.")
             return
 
+
+
         try:
             row, col = parse_coordinate(guess)
-            result, sunk_name = board.fire_at(row, col)
+            result, sunk_name = waiting_player.board.fire_at(row, col)
             moves += 1
 
             if result == 'hit':
                 if sunk_name:
-                    send(f"HIT! You sank the {sunk_name}!")
+                    send(current_player, f"HIT! You sank the {sunk_name}!")
+                    successful_turn = True 
                 else:
-                    send("HIT!")
-                if board.all_ships_sunk():
-                    send_board(board)
+                    send(current_player, "HIT!")
+                    successful_turn = True 
+                if waiting_player.board.all_ships_sunk():
+                    send_board(current_player, current_player.board)
                     send(f"Congratulations! You sank all ships in {moves} moves.")
+                    successful_turn = True 
                     return
             elif result == 'miss':
-                send("MISS!")
+                send(current_player, "MISS!")
+                successful_turn = True 
             elif result == 'already_shot':
-                send("You've already fired at that location.")
+                send(current_player, "You've already fired at that location.")
+                successful_turn = False
+                
+            
             #send over token 
-            send("OVER")   
+            #send(current_player, "OVER") 
+             
         except ValueError as e:
-            send(f"Invalid input: {e}")
+            send(current_player,f"Invalid input: {e}")
+            successful_turn = False  
+        
+        if successful_turn: 
+            if current_player == player1:
+                current_player = player2
+                waiting_player = player1
+            else:
+                current_player = player1
+                waiting_player = player2
+
+        
 
 if __name__ == "__main__":
     # Optional: run this file as a script to test single-player mode

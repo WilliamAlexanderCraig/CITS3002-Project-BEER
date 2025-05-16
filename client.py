@@ -26,31 +26,32 @@ import threading
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        print("Connecting to server...")
         s.connect((HOST, PORT))
+        print("Successfully connected to server...")
+        print("Waiting for other player to connect...")
+
         rfile = s.makefile('r')
         wfile = s.makefile('w')
 
-        # my thought is just to separate 
+       
 
 
         try:
             while True:
-                # PROBLEM: This design forces the client to alternate between
-                # reading a message and sending input, which doesn't work when
-                # the server sends multiple messages in sequence
                 
-                user_input = input(">> ")
-                wfile.write(user_input + '\n')
-                wfile.flush()
-
-
+                
                 line = rfile.readline()
+                
+                #if there is no response when the loop comes back to here 
+                #then the server is disconnected
                 if not line:
                     print("[INFO] Server disconnected.")
                     break
 
                 line = line.strip()
 
+                #Print the game board
                 if line == "GRID":
                     # Begin reading board lines
                     print("\n[Board]")
@@ -60,21 +61,20 @@ def main():
                             break
                         print(board_line.strip())
                 
-                #Wait for "OVER" Message
-                # Normal message
-                #elif(line != "OVER"):
-                    #print(line) # i want to see the difference between line and line.strip()
-                    #print(line.strip())
-    
-                else:# "OVER token received"
-                    user_input = input(">> ")
+
+                # if the message is "OVER" that means the server is done and will wait for user response
+                elif(line == "OVER"):
+                    
+                    user_input = input(">> ") # this should halt the thread until something is entered in the terminal
                     wfile.write(user_input + '\n')
                     wfile.flush()
+    
+                else:
+                    #this is a normal message
+                    print(line)
+                    pass
                     
 
-                
-
-                
 
         except KeyboardInterrupt:
             print("\n[INFO] Client exiting.")

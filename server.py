@@ -12,6 +12,9 @@ However, if you want to support multiple clients (i.e. progress through further 
 
 import socket
 from battleship import run_single_player_game_online
+import battleship
+
+
 
 import threading
 
@@ -68,12 +71,6 @@ def setup(s):
 
 def listen_for_player_messages(player):
 #     """Continuously receive and display messages from the server"""
-#     while running:
-#         line = rfile.readline()
-#         if not line:
-#             print("[INFO] Server disconnected.")
-#             break
-#         # Process and display the message
     running = True
     while running:
         line = player.rfile.readline()
@@ -81,6 +78,8 @@ def listen_for_player_messages(player):
             print(f"Player {player.address} disconnected")
             break
         print(line)
+
+
 
         
 
@@ -102,10 +101,12 @@ def main():
     player2_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[1],))
 
     
-    player1_thread.start()
-    player2_thread.start()
+    #player1_thread.start()
+    #player2_thread.start()
 
-    # Use THIS main thread to process commands and send messages back to players
+    
+
+    battleship.run_dual_player_game_online(players[0],players[1])
 
 
     
