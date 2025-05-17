@@ -46,7 +46,7 @@ def communicator_listening_loop(communicator):
                     communicator.connection_dropped()
                     break
 
-                #If the connection is alive, check if we 
+                #If the connection is alive, check if we have received the end of the json packet
                 if packet_line != "}":
                     received_packet_as_string += packet_line
                 else: #we have gotten to the end of the packet
@@ -55,11 +55,14 @@ def communicator_listening_loop(communicator):
             
             #We have now received ALL of the packet 
             #turn the packet string into a python dictionary 
-            packet = json.loads(received_packet_as_string)
+            packet = json.loads(received_packet_as_string) #json.loads stands for load-"s" not "loads" where s is "string" (json.load returns a file i think)
             #send this packet to the communicator (for it to send the data to the main thread of its process)
             communicator.run_when_new_packet(packet)
+            #TODO maybe turn packet dictionary back into a Packet object before sending 
 
     pass
+
+
 
 
 class Communicator:
@@ -75,11 +78,35 @@ class Communicator:
 
     def start_listening_thread(self):
         self.listening_thread = threading.Thread(target=communicator_listening_loop, args=(self,))
+        self.listening_thread.start()
         pass
 
     def connection_dropped(self):
         print(f"Connection from this process {self.from_socket.address} to process running on {self.to_socket.address} has dropped")
         #Handle dropped connection nicely
+
+    def send_packet(self, packet):
+        #create a dictonary which contains all the information from the packet object 
+        dictionary = {
+            "to_socket" : packet.to_socket,
+            "from_socket" : packet.from_socket,
+            "message" : packet.message,
+            "checksumhash" : "", #not using this yet
+            "packet_id" : "" #not using this yet
+        }
+
+        #turn that dictionary into json
+        json_packet = json.dumps(dictionary, indent=4) #indent gives you the nice formatting with whitespace 
+        
+        #Warning:
+        # using indents is is why i think we need to avoid using .strip() in the reading loop when looking for "{" 
+        
+        #Warning: We might need to split the json_packet into a list, with splits at each "\n" character to avoid funkyness
+
+        #write the json string to the 
+        self.from_socket.wfile(json_packet)
+        self.from_socket.wfile.flush()
+        
 
     
     
