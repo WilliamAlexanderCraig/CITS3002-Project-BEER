@@ -8,7 +8,7 @@ def thread_function(thread_number):
     while True:
 
         if running:
-            time.sleep(0.1)
+            time.sleep(random.random())
             count += 1
             print(f"Thread Number {thread_number} : count = {count}")
         else:
