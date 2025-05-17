@@ -1,0 +1,103 @@
+import json
+import threading
+
+# This is a implementation of a network protocol which both the server and the client use to communicate to each other 
+# the basic premise is 
+#       Communicator object only serves 1 connection (2 sockets)
+#       Both sender and receiver will have an instance of a Communicator object (server will have 2 , one for each player connection)
+#       Sender will create a packet object which contains the message they want to send 
+#       When the packet is complete, the Sender will send the packet to the communicator 
+#       the sender communicator will turn the data in the packet into a json string using the json library
+#       the sender communicator will send the json string, line by line to its write file
+#       the sender communicator have a thread which is always listening to the readfile of its connection
+#           if the receiver communicator reads "{" as a line in the readfile, it knows this is the beginning of a packet
+#           the receiver will append all lines to a string(or list) until it receives "}" (end of packet)
+#           receiver uses the json library to "unzip" the string into a python dictionary 
+#           receiver will send this python information to the main process to use the data 
+
+#Why is this function here: from experience in Agile, it seems that the loop running in a thread can NOT be inside another function or in a class, it must be "top level" 
+def communicator_listening_loop(communicator):
+    
+    #     """Continuously receive and display messages from the server"""
+    running = True
+    while running:
+        line = communicator.to_socket.rfile.readline()
+        
+        #check if the connection has dropped 
+        if not line:
+            communicator.connection_dropped()
+            break
+        print(line)
+
+        #I dont think we want strip for the json input
+        #line = line.strip() #The strip() method removes any leading, and trailing whitespaces.
+
+
+        #Look for beginning of packet
+        if line == "{":
+            received_packet_as_string = ""
+            #add the line to received_packet_as_string
+            received_packet_as_string += line
+            while True:
+                packet_line = communicator.to_socket.rfile.readline()
+                
+                #Check if connection has dropped 
+                if not packet_line:
+                    communicator.connection_dropped()
+                    break
+
+                #If the connection is alive, check if we 
+                if packet_line != "}":
+                    received_packet_as_string += packet_line
+                else: #we have gotten to the end of the packet
+                    received_packet_as_string += packet_line
+                    break
+            
+            #We have now received ALL of the packet 
+            #turn the packet string into a python dictionary 
+            packet = json.loads(received_packet_as_string)
+            #send this packet to the communicator (for it to send the data to the main thread of its process)
+            communicator.run_when_new_packet(packet)
+
+    pass
+
+
+class Communicator:
+    def __init__(self, from_socket, to_socket):
+        self.from_socket = from_socket # the socket of the process hosting this communicator 
+        self.to_socket = to_socket #the socket of the process that is on the other end of the connection 
+
+    def set_run_when_new_packet(self, function):
+        self.function_to_run_when_new_packet = function
+
+    def run_when_new_packet(self, packet):
+        self.function_to_run_when_new_packet(packet)
+
+    def start_listening_thread(self):
+        self.listening_thread = threading.Thread(target=communicator_listening_loop, args=(self,))
+        pass
+
+    def connection_dropped(self):
+        print(f"Connection from this process {self.from_socket.address} to process running on {self.to_socket.address} has dropped")
+        #Handle dropped connection nicely
+
+    
+    
+
+
+
+
+
+
+class Packet:
+    def __init__(self, from_socket, to_socket):
+        self.from_socket = from_socket # the socket that this packet is being sent from 
+        self.to_socket = to_socket #the socket that this packet it being sent to 
+        
+        
+    def create_message(self):
+        pass
+
+    def send(self):
+        pass
+

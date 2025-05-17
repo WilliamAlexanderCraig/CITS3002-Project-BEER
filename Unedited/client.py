@@ -8,11 +8,9 @@ TODO: Fix the message synchronization issue using concurrency (Tier 1, item 1).
 """
 
 import socket
-import protocol
-
 
 HOST = '127.0.0.1'
-PORT = 8081
+PORT = 5000
 
 # HINT: The current problem is that the client is reading from the socket,
 # then waiting for user input, then reading again. This causes server
@@ -24,33 +22,25 @@ PORT = 8081
 #
 # import threading
 
-import threading
-
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        print("Connecting to server...")
         s.connect((HOST, PORT))
-        print("Successfully connected to server...")
-        print("Waiting for other player to connect...")
-
         rfile = s.makefile('r')
         wfile = s.makefile('w')
 
         try:
             while True:
-                   
-                line = rfile.readline() 
+                # PROBLEM: This design forces the client to alternate between
+                # reading a message and sending input, which doesn't work when
+                # the server sends multiple messages in sequence
                 
-                #if there is no response when the loop comes back to here 
-                #then the server is disconnected
+                line = rfile.readline()
                 if not line:
                     print("[INFO] Server disconnected.")
                     break
 
                 line = line.strip()
 
-
-                #Print the game board
                 if line == "GRID":
                     # Begin reading board lines
                     print("\n[Board]")
@@ -59,22 +49,13 @@ def main():
                         if not board_line or board_line.strip() == "":
                             break
                         print(board_line.strip())
-                
-
-                # if the message is "OVER" that means the server is done and will wait for user response
-                elif(line == "OVER"):
-                    
-                    user_input = input(">> ") # this should halt the thread until something is entered in the terminal
-                    wfile.write(user_input + '\n')
-                    wfile.flush()
-    
                 else:
-                    #this is a normal message
+                    # Normal message
                     print(line)
-                    pass
-                    
-                
 
+                user_input = input(">> ")
+                wfile.write(user_input + '\n')
+                wfile.flush()
 
         except KeyboardInterrupt:
             print("\n[INFO] Client exiting.")
@@ -97,4 +78,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -14,18 +14,26 @@ import socket
 from battleship import run_single_player_game_online
 
 HOST = '127.0.0.1'
-PORT = 8081
+PORT = 5000
+
+
+
+
 
 def main():
     print(f"[INFO] Server listening on {HOST}:{PORT}")
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen(2)
+        s.bind((HOST, PORT)) #Blocking (it wont go further until this has happened)
+        s.listen(2) # waiting for connections blocked until 2 people connect
         conn, addr = s.accept()
         print(f"[INFO] Client connected from {addr}")
         with conn:
             rfile = conn.makefile('r')
             wfile = conn.makefile('w')
+
+            open()
+
             run_single_player_game_online(rfile, wfile)
         print("[INFO] Client disconnected.")
 

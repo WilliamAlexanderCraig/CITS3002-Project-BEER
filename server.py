@@ -32,7 +32,7 @@ class Player:
     def __init__(self, connection, address):
         self.connection = connection
         self.address = address
-        self.game_state = "WAITING"
+        #self.game_state = "WAITING"
     
     def set_files(self, rfile, wfile):
         self.rfile = rfile
@@ -40,6 +40,9 @@ class Player:
 
     def set_board(self, BOARD):
         self.board = BOARD
+
+    def set_moves(self, moves):
+        self.moves = moves
 
 def setup(s):
     #s stands for socket 
@@ -67,7 +70,7 @@ def setup(s):
     #check that both players exist 
     if players[0] != None and players[1] != None:
         print(f"First Player = {players[0].address}")
-        print(f"Second Player = {players[1].address}")
+        print(f"Second Player = {players[1].address}") 
 
 def listen_for_player_messages(player):
 #     """Continuously receive and display messages from the server"""
@@ -101,21 +104,16 @@ def main():
     player2_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[1],))
 
     
-    #player1_thread.start()
-    #player2_thread.start()
+    player1_thread.start()
+    player2_thread.start()
+
+    print("active threads: " + str(threading.active_count()))
 
     
 
     battleship.run_dual_player_game_online(players[0],players[1])
 
 
-    
-    
-
-    
-    
-            
-            
     
 
     
