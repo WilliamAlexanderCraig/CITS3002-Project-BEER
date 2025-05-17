@@ -438,7 +438,7 @@ def run_dual_player_game_online(player1, player2):
     player1.board.place_ships_randomly(SHIPS)
     player2.board.place_ships_randomly(SHIPS)
 
-    welcome_packet = communication.Packet(player1.from_socket, player1.to_socket)
+    welcome_packet = communication.Packet()
 
     welcome_packet.add_to_message("Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
     player1.communicator.send_packet(welcome_packet)
@@ -448,7 +448,8 @@ def run_dual_player_game_online(player1, player2):
     while True:
         print("im alive")
         time.sleep(1)
-
+        player1.communicator.send_packet(welcome_packet)
+        print("sent packet" + str(welcome_packet))
         pass
 
     '''

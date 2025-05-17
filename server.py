@@ -20,6 +20,11 @@ import communication
 
 import threading
 
+#import multiprocessing
+#import platform
+#if platform.system() == "Darwin":
+#            multiprocessing.set_start_method("fork") 
+
 HOST = '127.0.0.1'
 PORT = 8081 #port 5000 was taken on my pc for some reason
 
@@ -124,8 +129,11 @@ def main():
     player_1 = players[0]
     player_2 = players[1]
 
-    player_1.communicator.start_listening_thread()
-    player_1.communicator.start_listening_thread()
+    player_1_history = []
+    player_2_history = []
+
+    player_1.communicator.start_listening_thread(player_1_history)
+    player_2.communicator.start_listening_thread(player_2_history)
     print("active threads: " + str(threading.active_count()))
 
     battleship.run_dual_player_game_online(player_1,player_2)

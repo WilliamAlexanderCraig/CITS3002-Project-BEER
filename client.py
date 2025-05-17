@@ -9,6 +9,11 @@ TODO: Fix the message synchronization issue using concurrency (Tier 1, item 1).
 
 import socket
 
+import multiprocessing
+import platform
+if platform.system() == "Darwin":
+            multiprocessing.set_start_method("fork") 
+
 
 HOST = '127.0.0.1'
 PORT = 8081
@@ -29,11 +34,12 @@ import json
 import time
 import threading
 
-def print_once(dictionary):
-    print(json.dumps(dictionary))
+def print_once(thing):
+    print(thing)
 
 input_requested_from_server = False
 
+client_history = []
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -47,25 +53,35 @@ def main():
         communicator = communication.Communicator()
         communicator.set_run_when_new_packet(print_once)
         communicator.set_rw_files(rfile,wfile)
-        communicator.start_listening_thread()
+        #communicator.start_listening_thread(history)
+
+        thread = threading.Thread(target=communicator.communicator_listening_loop, args=(client_history,))
+        thread.start()
         
         running = True
 
-        time.sleep(10)
-
+        #
+        # 
+        # time.sleep(10)
+        '''
         try:
             while running:
 
+                #communicator.lock.aquire()
                 print("alive " + str(time.time()))
                 print("active threads " + str(threading.active_count()))
+
+                print(history)
+
                 time.sleep(1)
-                   
+                
                 if input_requested_from_server == True:
                     print(">>")
                     input_string = input()
-                
+                #communicator.lock.release()
+            
 
-                '''
+                
                 line = rfile.readline() 
                 
                 #if there is no response when the loop comes back to here 
@@ -99,7 +115,7 @@ def main():
                     #this is a normal message
                     print(line)
                     pass
-                '''
+                
                 
                     
                 
@@ -108,6 +124,8 @@ def main():
         except KeyboardInterrupt:
             print("\n[INFO] Client exiting.")
             communicator.stop_listening_thread()
+        '''
+        
 
 # HINT: A better approach would be something like:
 #
