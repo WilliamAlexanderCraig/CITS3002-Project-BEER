@@ -14,7 +14,7 @@ import socket
 from battleship import run_single_player_game_online
 import battleship
 
-
+import communication
 
 import threading
 
@@ -27,16 +27,25 @@ players = [] # list of all the Player class objects
 player_threads = []
 
 
-#Class to hold all data for each player
-class Player:
-    def __init__(self, connection, address):
-        self.connection = connection
+#Class to hold all data for each client 
+class Client: #this is renamed from "Player"
+    def __init__(self, from_socket, to_socket, address):
+        #self.connection = connection
+        
+
+        self.communicator = communication.Communicator(from_socket,to_socket)
+        self.communicator.set_run_when_new_packet(self.received_new_packet_from_client)
         self.address = address
-        #self.game_state = "WAITING"
-    
-    def set_files(self, rfile, wfile):
-        self.rfile = rfile
-        self.wfile = wfile
+
+        self.is_player = True # use this later when we have spectators and such
+   
+    def received_new_packet_from_client(self, packet):
+        pass
+
+    def set_rw_files(self,rfile,wfile):
+        self.communicator.rfile = rfile
+        self.communicator.wfile = wfile
+        
 
     def set_board(self, BOARD):
         self.board = BOARD
@@ -45,6 +54,14 @@ class Player:
         self.moves = moves
 
 def setup(s):
+
+    ########
+    # This function currently waits for exactly 2 connections and assumes that both connections are players 
+    # later we will need to rewrite this to include the possibility of non-players (spectators)
+    # this function will likely have to be rewritten to be threaded 
+    ########
+
+
     #s stands for socket 
     print(f"[INFO] Server listening on {HOST}:{PORT}")
     s.bind((HOST, PORT)) # creates a pseudo server on this address
@@ -56,16 +73,18 @@ def setup(s):
         s.listen(1) # open for 1 availiable connection
         
         #wait until a player connects
-        conn, addr = s.accept()
-        newPlayer = Player(conn, addr) # make a new player object to store all the data about this connection
+        socket_to_client, client_addr = s.accept()
+        newPlayer = Client(s, socket_to_client, client_addr) # make a new player object to store all the data about this connection
         
-        print(f"[INFO] Client {player_connection} connected from {addr}")
+        print(f"[INFO] Client {player_connection} connected from {client_addr}")
         players.append(newPlayer)
         
-        with conn:
-            rfile = conn.makefile('r')
-            wfile = conn.makefile('w')
-            newPlayer.set_files(rfile,wfile)
+        with socket_to_client:
+            rfile = socket_to_client.makefile('r')
+            wfile = socket_to_client.makefile('w')
+            newPlayer.set_rw_files(rfile,wfile)
+        
+        
         
     #check that both players exist 
     if players[0] != None and players[1] != None:
@@ -98,20 +117,26 @@ def main():
 
     print("Begin game")
 
+    player_1 = players[0]
+    player_2 = players[1]
+
+    player_1.communicator.start_listening_thread()
+    player_1.communicator.start_listening_thread()
+    print("active threads: " + str(threading.active_count()))
+
+    battleship.run_dual_player_game_online(player_1,player_2)
 
     # Make a thread to listen for each player's incoming messages
-    player1_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[0],))
-    player2_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[1],))
-
-    
-    player1_thread.start()
-    player2_thread.start()
+    #player1_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[0],))
+    #player2_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[1],))
+    #player1_thread.start()
+    #player2_thread.start()
 
     print("active threads: " + str(threading.active_count()))
 
     
 
-    battleship.run_dual_player_game_online(players[0],players[1])
+    
 
 
     

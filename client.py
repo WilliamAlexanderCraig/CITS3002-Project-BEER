@@ -8,7 +8,6 @@ TODO: Fix the message synchronization issue using concurrency (Tier 1, item 1).
 """
 
 import socket
-import protocol
 
 
 HOST = '127.0.0.1'

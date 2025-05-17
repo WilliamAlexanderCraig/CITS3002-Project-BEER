@@ -21,7 +21,7 @@ def communicator_listening_loop(communicator):
     #     """Continuously receive and display messages from the server"""
     running = True
     while running:
-        line = communicator.to_socket.rfile.readline()
+        line = communicator.rfile.readline()
         
         #check if the connection has dropped 
         if not line:
@@ -39,7 +39,7 @@ def communicator_listening_loop(communicator):
             #add the line to received_packet_as_string
             received_packet_as_string += line
             while True:
-                packet_line = communicator.to_socket.rfile.readline()
+                packet_line = communicator.rfile.readline()
                 
                 #Check if connection has dropped 
                 if not packet_line:
@@ -76,6 +76,10 @@ class Communicator:
     def run_when_new_packet(self, packet):
         self.function_to_run_when_new_packet(packet)
 
+    def set_rw_files(self,rfile, wfile):
+        self.rfile = rfile
+        self.wfile = wfile
+
     def start_listening_thread(self):
         self.listening_thread = threading.Thread(target=communicator_listening_loop, args=(self,))
         self.listening_thread.start()
@@ -104,27 +108,20 @@ class Communicator:
         #Warning: We might need to split the json_packet into a list, with splits at each "\n" character to avoid funkyness
 
         #write the json string to the 
-        self.from_socket.wfile(json_packet)
-        self.from_socket.wfile.flush()
+        self.wfile(json_packet)
+        self.wfile.flush()
         
 
-    
-    
-
-
-
-
-
+        
 
 class Packet:
     def __init__(self, from_socket, to_socket):
         self.from_socket = from_socket # the socket that this packet is being sent from 
-        self.to_socket = to_socket #the socket that this packet it being sent to 
-        
-        
-    def create_message(self):
-        pass
+        self.to_socket = to_socket #the socket that this packet it being sent to
+        self.message = ""
+        self.checksumhash = None #not using this yet
+        self.packet_id = None #not using this yet
 
-    def send(self):
-        pass
+    def set_message(self,message):
+        self.message = message
 
