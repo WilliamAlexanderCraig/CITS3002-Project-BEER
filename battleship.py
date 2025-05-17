@@ -9,6 +9,9 @@ Contains core data structures and logic for Battleship, including:
 """
 
 import random
+import communication
+import json
+import time
 
 BOARD_SIZE = 10
 SHIPS = [
@@ -357,6 +360,34 @@ def run_single_player_game_online(rfile, wfile):
         except ValueError as e:
             send(f"Invalid input: {e}")
 
+
+def add_board_to_packet_message(packet, board, hidden):
+        
+        #player.wfile.write("GRID\n")
+
+        top_row = ("  " + " ".join(str(i + 1).rjust(2) for i in range(board.size)) + '\n')
+        packet.add_to_message(top_row)
+
+        if hidden == True: #TODO check this
+            for r in range(board.size):
+                row_label = chr(ord('A') + r)
+                row_str = " ".join(board.hidden_grid[r][c] for c in range(board.size))
+                packet.add_to_message(f"{row_label:2} {row_str}\n")
+        else:
+            for r in range(board.size):
+                row_label = chr(ord('A') + r)
+                row_str = " ".join(board.display_grid[r][c] for c in range(board.size))
+                packet.add_to_message(f"{row_label:2} {row_str}\n")
+        
+        
+        packet.add_to_message("\n")
+        
+
+
+
+
+
+
 def run_dual_player_game_online(player1, player2):
     """
     A test harness for running the single-player game with I/O redirected to socket file objects.
@@ -369,7 +400,7 @@ def run_dual_player_game_online(player1, player2):
                                                                     the read and write files work in the same way as open(), check https://docs.python.org/3/library/socket.html for more info
                                                             Player.board        :   the players board
     
-    """
+    
     def send(player, msg): # this will likely need to be more sophisticated to avoid mismatching 
         player.wfile.write(msg + '\n')
         player.wfile.flush()
@@ -397,6 +428,8 @@ def run_dual_player_game_online(player1, player2):
 
     def recv(player):
         return player.rfile.readline().strip()
+    """
+
 
     player1.board = Board(BOARD_SIZE)
     player2.board = Board(BOARD_SIZE)
@@ -405,10 +438,22 @@ def run_dual_player_game_online(player1, player2):
     player1.board.place_ships_randomly(SHIPS)
     player2.board.place_ships_randomly(SHIPS)
 
+    welcome_packet = communication.Packet(player1.from_socket, player1.to_socket)
 
-    send(player1, "Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
-    send(player2, "Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
+    welcome_packet.add_to_message("Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
+    player1.communicator.send_packet(welcome_packet)
+    print("sent packet" + str(welcome_packet))
+    #send(player2, "Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.")
 
+    while True:
+        print("im alive")
+        time.sleep(1)
+
+        pass
+
+    '''
+    
+    
     moves = 0 #should be a player attribute ?
 
     current_player = player1
@@ -417,15 +462,27 @@ def run_dual_player_game_online(player1, player2):
     ##TODO Game logic will need to be rewritten for 2 players
     while True:
 
+
+
         successful_turn = False
 
+        packet = communication.Packet(current_player.from_socket, current_player.to_socket)
+
+        packet.set_message("\nThis is the state of your board")
+        #send board
+        add_board_to_packet_message(packet, current_player.board, True)
+        packet.add_to_message("\n")
+
         #send the state of your board and of the opposite players board
+        
         send(current_player, "\nThis is the state of your board")
         send_board(current_player, current_player, True) #send unhidden version 
         send(current_player, "\ngThis is the state of your opponents board")
         send_board(current_player, waiting_player, False) #send hidden version
         send(current_player, "Enter coordinate to fire at (e.g. B5):")
         send(current_player, "OVER")
+        
+        
        
         #wait for player response
         guess = recv(current_player) #blocking
@@ -477,7 +534,7 @@ def run_dual_player_game_online(player1, player2):
                 current_player = player1
                 waiting_player = player2
 
-        
+        '''
 
 if __name__ == "__main__":
     # Optional: run this file as a script to test single-player mode

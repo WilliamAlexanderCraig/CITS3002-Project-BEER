@@ -1,6 +1,6 @@
 import json
 import threading
-
+import communication
 # This is a implementation of a network protocol which both the server and the client use to communicate to each other 
 # the basic premise is 
 #       Communicator object only serves 1 connection (2 sockets)
@@ -19,20 +19,30 @@ import threading
 def communicator_listening_loop(communicator):
     
     #     """Continuously receive and display messages from the server"""
+    line = communicator.rfile.readline()
+
     running = True
     while running:
-        line = communicator.rfile.readline()
+        #line = communicator.rfile.readline()
         
         #check if the connection has dropped 
         if not line:
             communicator.connection_dropped()
-            break
-        print(line)
+            return
+        #print(line)
 
         #I dont think we want strip for the json input
         #line = line.strip() #The strip() method removes any leading, and trailing whitespaces.
 
+        
 
+        json_of_line = json.loads(line)
+
+        #communicator.run_when_new_packet(json_of_line)
+        print("testing")
+        #print("JSON OF LINE : \n\n\n\n" + json.dumps(json_of_line))
+
+        '''
         #Look for beginning of packet
         if line == "{":
             received_packet_as_string = ""
@@ -55,10 +65,13 @@ def communicator_listening_loop(communicator):
             
             #We have now received ALL of the packet 
             #turn the packet string into a python dictionary 
+            received_packet_as_string = json.dumps(received_packet_as_string)
             packet = json.loads(received_packet_as_string) #json.loads stands for load-"s" not "loads" where s is "string" (json.load returns a file i think)
             #send this packet to the communicator (for it to send the data to the main thread of its process)
             communicator.run_when_new_packet(packet)
             #TODO maybe turn packet dictionary back into a Packet object before sending 
+        '''
+        
 
     pass
 
@@ -66,9 +79,11 @@ def communicator_listening_loop(communicator):
 
 
 class Communicator:
-    def __init__(self, from_socket, to_socket):
-        self.from_socket = from_socket # the socket of the process hosting this communicator 
-        self.to_socket = to_socket #the socket of the process that is on the other end of the connection 
+    def __init__(self):
+        pass
+        #self.from_socket = from_socket # the socket of the process hosting this communicator 
+        #self.to_socket = to_socket #the socket of the process that is on the other end of the connection 
+
 
     def set_run_when_new_packet(self, function):
         self.function_to_run_when_new_packet = function
@@ -82,25 +97,29 @@ class Communicator:
 
     def start_listening_thread(self):
         self.listening_thread = threading.Thread(target=communicator_listening_loop, args=(self,))
+        self.listening_thread.daemon = True
         self.listening_thread.start()
-        pass
+        
+    
+    def stop_listening_thread(self):
+        self.listening_thread.join()
 
     def connection_dropped(self):
-        print(f"Connection from this process {self.from_socket.address} to process running on {self.to_socket.address} has dropped")
+        print(f"Connection has dropped")
         #Handle dropped connection nicely
 
     def send_packet(self, packet):
         #create a dictonary which contains all the information from the packet object 
         dictionary = {
-            "to_socket" : packet.to_socket,
-            "from_socket" : packet.from_socket,
-            "message" : packet.message,
+            "to_socket" : str(packet.to_socket),
+            "from_socket" : str(packet.from_socket),
+            "message" : str(packet.message),
             "checksumhash" : "", #not using this yet
             "packet_id" : "" #not using this yet
         }
 
         #turn that dictionary into json
-        json_packet = json.dumps(dictionary, indent=4) #indent gives you the nice formatting with whitespace 
+        json_packet = json.dumps(dictionary) #indent gives you the nice formatting with whitespace 
         
         #Warning:
         # using indents is is why i think we need to avoid using .strip() in the reading loop when looking for "{" 
@@ -108,7 +127,7 @@ class Communicator:
         #Warning: We might need to split the json_packet into a list, with splits at each "\n" character to avoid funkyness
 
         #write the json string to the 
-        self.wfile(json_packet)
+        self.wfile.write(json_packet)
         self.wfile.flush()
         
 
@@ -124,4 +143,7 @@ class Packet:
 
     def set_message(self,message):
         self.message = message
+    
+    def add_to_message(self,message):
+        self.message += "\n" + message
 

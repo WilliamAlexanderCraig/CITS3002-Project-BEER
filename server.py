@@ -12,6 +12,8 @@ However, if you want to support multiple clients (i.e. progress through further 
 
 import socket
 from battleship import run_single_player_game_online
+
+
 import battleship
 
 import communication
@@ -32,8 +34,10 @@ class Client: #this is renamed from "Player"
     def __init__(self, from_socket, to_socket, address):
         #self.connection = connection
         
+        self.from_socket = from_socket
+        self.to_socket = to_socket
 
-        self.communicator = communication.Communicator(from_socket,to_socket)
+        self.communicator = communication.Communicator()
         self.communicator.set_run_when_new_packet(self.received_new_packet_from_client)
         self.address = address
 
@@ -132,7 +136,7 @@ def main():
     #player1_thread.start()
     #player2_thread.start()
 
-    print("active threads: " + str(threading.active_count()))
+    #print("active threads: " + str(threading.active_count()))
 
     
 

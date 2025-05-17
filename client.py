@@ -23,7 +23,17 @@ PORT = 8081
 #
 # import threading
 
+
+import communication
+import json
+import time
 import threading
+
+def print_once(dictionary):
+    print(json.dumps(dictionary))
+
+input_requested_from_server = False
+
 
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -34,10 +44,28 @@ def main():
 
         rfile = s.makefile('r')
         wfile = s.makefile('w')
+        communicator = communication.Communicator()
+        communicator.set_run_when_new_packet(print_once)
+        communicator.set_rw_files(rfile,wfile)
+        communicator.start_listening_thread()
+        
+        running = True
+
+        time.sleep(10)
 
         try:
-            while True:
+            while running:
+
+                print("alive " + str(time.time()))
+                print("active threads " + str(threading.active_count()))
+                time.sleep(1)
                    
+                if input_requested_from_server == True:
+                    print(">>")
+                    input_string = input()
+                
+
+                '''
                 line = rfile.readline() 
                 
                 #if there is no response when the loop comes back to here 
@@ -71,12 +99,15 @@ def main():
                     #this is a normal message
                     print(line)
                     pass
+                '''
+                
                     
                 
 
 
         except KeyboardInterrupt:
             print("\n[INFO] Client exiting.")
+            communicator.stop_listening_thread()
 
 # HINT: A better approach would be something like:
 #
