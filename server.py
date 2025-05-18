@@ -432,6 +432,7 @@ class Client: #this is renamed from "Player"
         #IP address and port of the client 
         self.address = address
         self.connection = connection
+        self.port = str(address[1])
 
 
         # player_num 
@@ -452,17 +453,17 @@ class Client: #this is renamed from "Player"
     def set_moves(self, moves):
         self.moves = moves
     
-    def send_packet_to_client(self, message, need_response):
+    def send_packet_to_client(self, message, response_id):
 
         
         packet_dict = {
             "time" : time.time(),
             "message" : message,
             "checksum" : hash(time.time()),
-            "to_addr" : self.address,
-            "from_addr" : "127.0.0.1:8081",
+            "to_addr" : self.port,
+            "from_addr" : "8081",
             "read" : False,
-            "need_response" : need_response
+            "response_id" : response_id
         }
 
         #"pack"  the packet into a json thing
@@ -473,7 +474,7 @@ class Client: #this is renamed from "Player"
         self.wfile.flush()
 
 
-        
+  
 
 def setup(s):
 
@@ -525,15 +526,17 @@ def listen_for_player_messages(client):
             time.sleep(0.5)
 
             #read the line and strip() to remove any whitespace
-            line = client.rfile.readline().strip()
+            packet = client.rfile.readline().strip()
             
             #check if the connection is broken
-            if not line:
+            if not packet:
                 print(f"Player {client.address} disconnected")
                 running = False
                 break
             
-            history_in.append(line)
+            dict_packet = json.loads(packet)
+
+            history_in.append(dict_packet)
     
         else:
             break
@@ -591,7 +594,7 @@ def main():
     game.player_1.send_packet_to_client("You are Player 1", False)
     game.player_2.send_packet_to_client("You are Player 2", False)
 
-    game.player_1.send_packet_to_client("send me something", True)
+    game.player_1.send_packet_to_client("send me something", 1)
 
     
 
@@ -604,6 +607,15 @@ def main():
             #game_logic
             game_logic(game)
 
+            if len(history_in) != 0:
+                
+                #read the most recent message from the server (if it hasnt been read )
+                recent_packet = history_in[-1] 
+                if recent_packet["read"] != True:
+                    from_addr = recent_packet["from_addr"]
+                    print(f"[{from_addr}]: " + str(recent_packet["message"]))
+                    recent_packet["read"] = True
+                     
             
 
 

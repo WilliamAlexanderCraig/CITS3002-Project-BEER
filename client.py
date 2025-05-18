@@ -34,7 +34,7 @@ import json
 import time
 import threading
 
-
+  
 
 
 
@@ -69,14 +69,17 @@ def listen_for_server_messages(rfile):
         else:
             break
 
-def send_message_to_server(wfile, message):
+def send_message_to_server(wfile, message, response_id):
+        global my_address
+
         packet_dict = {
             "time" : time.time(),
             "message" : message,
             "checksum" : hash(time.time()),
             "to_addr" : "127.0.0.1:8081",
-            "from_addr" : ,
+            "from_addr" : my_address_port,
             "read" : False,
+            "response_id" : response_id
         }
 
         #"pack"  the packet into a json thing
@@ -94,6 +97,9 @@ def main():
 
     global history_in
     history_in = []
+
+    global my_address_port
+    my_address_port = None
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
@@ -125,10 +131,14 @@ def main():
                 if recent_packet["read"] != True:
                     print("[Server]: " + str(recent_packet["message"]))
                     recent_packet["read"] = True
+                    my_address_port = recent_packet["to_addr"]
 
-                    if recent_packet["need_response"] == True:
+                    if recent_packet["response_id"] != False:
+                        
+                        response_id = recent_packet["response_id"]
                         response = input(">>")
                         print("Sending to server: " + response)
+                        send_message_to_server(wfile,response, response_id)
 
             
 
