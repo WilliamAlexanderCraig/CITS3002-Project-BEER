@@ -426,18 +426,18 @@ def play_game(game):
             ## Blocks this thread here until gets a response 
             game.current_player.send_packet_to_client("\nEnter coordinate to fire at (e.g. B5):", response_id_count)
             guess = block_until_received_response()["message"]
-            #response_id_count += 1
             
             
             
-            #print("Guess was " + str(guess))
-
-
+            
+            
             if guess.lower() == 'quit':
                 
                 game.current_player.send_packet_to_client("Thanks for playing. Goodbye.", False)
                 running = False
-                return "quit" ,game.currentplayer
+                connections.remove(game.current_player)
+                game.current_player = None
+                return "quit" , game.current_player
             
             try:
                 row, col, error_check = parse_coordinate(guess)
@@ -467,7 +467,7 @@ def play_game(game):
                         game.current_player.send_packet_to_client(message, False)
                         
                         game.successful_turn = True 
-                        return "win" , game.currentplayer
+                        return "win" , game.current_player
                     
                 elif result == 'miss':
                     game.current_player.send_packet_to_client("MISS!", False)
@@ -499,18 +499,17 @@ def setup_game(game):
 
     #send welcome message
     message = "Welcome to Online Single-Player Battleship! Try to sink all the ships. Type 'quit' to exit."
-    game.player_1.send_packet_to_client(message, False)
-    game.player_2.send_packet_to_client(message, False)
-    game.player_1.send_packet_to_client("You are Player 1", False)
-    game.player_2.send_packet_to_client("You are Player 2", False)
+    game.current_player.send_packet_to_client(message, False)
+    game.waiting_player.send_packet_to_client(message, False)
+    
 
     
 
     #create boards for players
-    game.player_1.set_board(Board(BOARD_SIZE))
-    game.player_2.set_board(Board(BOARD_SIZE))
+    game.current_player.set_board(Board(BOARD_SIZE))
+    game.waiting_player.set_board(Board(BOARD_SIZE))
 
-    for player in [game.player_1, game.player_2]:
+    for player in [game.current_player, game.waiting_player]:
         while True:
 
             #ask if the players want random or manual ship placement 
@@ -524,7 +523,7 @@ def setup_game(game):
                     player.board.place_ships_randomly( SHIPS)
                     break
                 elif placement_mode == "M":
-                    player.board.place_ships_manually( game.player_1, SHIPS)
+                    player.board.place_ships_manually( player, SHIPS)
                     break
             except ValueError as e:
                 player.send_packet_to_client(f" Invalid input: {e}", False)    
@@ -696,12 +695,15 @@ def main():
 
 
     setup_game(game)
-    result = play_game(game)
+    result, player = play_game(game)
 
     if result == "win":
         pass
     elif result == "quit":
-        pass
+        if player == game.player_1:
+            print(f"Player 1 quit the game, therefore Player 2 wins")
+        else: 
+            print(f"Player 1 quit the game, therefore Player 2 wins")
 
     
     
