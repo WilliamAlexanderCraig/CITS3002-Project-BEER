@@ -542,8 +542,23 @@ def listen_for_player_messages(client):
             break
 
 
+def print_client_messages_to_console():
+    global running
+    global history_in
+    
+    while True:
+        if running:
 
-        
+            if len(history_in) != 0:
+                        
+                #read the most recent message from the server (if it hasnt been read )
+                recent_packet = history_in[-1] 
+                if recent_packet["read"] != True:
+                    from_addr = recent_packet["from_addr"]
+                    print(f"[{from_addr}]: " + str(recent_packet["message"]))
+                    recent_packet["read"] = True
+        else:
+            break
 
 def main():
     # is the server running
@@ -583,6 +598,9 @@ def main():
     listen_thread_player_1.start()
     listen_thread_player_2.start()
 
+    printing_client_messages_thread = threading.Thread(target=print_client_messages_to_console)
+    printing_client_messages_thread.start()
+
     print("active threads: " + str(threading.active_count()))
 
 
@@ -607,14 +625,7 @@ def main():
             #game_logic
             game_logic(game)
 
-            if len(history_in) != 0:
-                
-                #read the most recent message from the server (if it hasnt been read )
-                recent_packet = history_in[-1] 
-                if recent_packet["read"] != True:
-                    from_addr = recent_packet["from_addr"]
-                    print(f"[{from_addr}]: " + str(recent_packet["message"]))
-                    recent_packet["read"] = True
+            
                      
             
 
