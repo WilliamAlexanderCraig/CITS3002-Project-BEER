@@ -24,12 +24,6 @@ PORT = 8081
 # - One thread continuously reads from the socket and displays messages
 # - The main thread handles user input and sends it to the server
 #
-# import threading
-
-
-
-
-  
 
 
 
@@ -84,7 +78,6 @@ def send_message_to_server(wfile, message, response_id):
         wfile.write(packed)
         wfile.flush()
 
-
 def main():
 
     global running
@@ -133,6 +126,7 @@ def main():
                         response_id = recent_packet["response_id"]
                         response = input(">>")
                         print("Sending to server: " + response)
+                        print("response_id: " + str(response_id))
                         send_message_to_server(wfile,response, response_id)
 
             

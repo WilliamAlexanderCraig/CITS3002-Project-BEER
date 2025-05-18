@@ -88,23 +88,42 @@ class Board:
                     placed = True
 
 
-    def place_ships_manually(self, ships=SHIPS):
+    def place_ships_manually(self, client, response_id_count, ships=SHIPS):
         """
         Prompt the user for each ship's starting coordinate and orientation (H or V).
         Validates the placement; if invalid, re-prompts.
         """
-        print("\nPlease place your ships manually on the board.")
+        global history_in
+        global running
+
+
+        client.send_packet_to_client("\nPlease place your ships manually on the board.", False)
         for ship_name, ship_size in ships:
             while True:
-                self.print_display_grid(show_hidden_board=True)
-                print(f"\nPlacing your {ship_name} (size {ship_size}).")
-                coord_str = input("  Enter starting coordinate (e.g. A1): ").strip()
-                orientation_str = input("  Orientation? Enter 'H' (horizontal) or 'V' (vertical): ").strip().upper()
 
+                #print board
+                client.send_packet_to_client("\nThis is the state of your board", False)
+                board_string = client.board.get_string_display_grid(True)
+                client.send_packet_to_client(board_string, False)
+
+                client.send_packet_to_client(f"\nPlacing your {ship_name} (size {ship_size}).", False)
+                
+                
+                ## Blocks this thread here until gets a response 
+                client.send_packet_to_client("  Enter starting coordinate (e.g. A1): ", response_id_count)
+                coord_str = block_until_received_response(response_id_count)["message"]
+                response_id_count += 1
+            
+                ## Blocks this thread here until gets a response 
+                client.send_packet_to_client("  Orientation? Enter 'H' (horizontal) or 'V' (vertical): ", response_id_count)
+                orientation_str = block_until_received_response(response_id_count)["message"]
+                response_id_count += 1
+
+                
                 try:
                     row, col = parse_coordinate(coord_str)
                 except ValueError as e:
-                    print(f"  [!] Invalid coordinate: {e}")
+                    client.send_packet_to_client(f"  [!] Invalid coordinate: {e}", False)
                     continue
 
                 # Convert orientation_str to 0 (horizontal) or 1 (vertical)
@@ -113,7 +132,7 @@ class Board:
                 elif orientation_str == 'V':
                     orientation = 1
                 else:
-                    print("  [!] Invalid orientation. Please enter 'H' or 'V'.")
+                    client.send_packet_to_client("  [!] Invalid orientation. Please enter 'H' or 'V'.", False)
                     continue
 
                 # Check if we can place the ship
@@ -125,7 +144,7 @@ class Board:
                     })
                     break
                 else:
-                    print(f"  [!] Cannot place {ship_name} at {coord_str} (orientation={orientation_str}). Try again.")
+                    client.send_packet_to_client(f"  [!] Cannot place {ship_name} at {coord_str} (orientation={orientation_str}). Try again.", False)
 
 
     def can_place_ship(self, row, col, ship_size, orientation):
@@ -288,7 +307,12 @@ def parse_coordinate(coord_str):
     row = ord(row_letter) - ord('A')
     col = int(col_digits) - 1  # zero-based
 
-    return (row, col)
+
+    error_check = "ERROR"
+
+    #if row > J then error_check == "ERROR"
+
+    return row, col, error_check
 
 
 ##############
@@ -459,6 +483,29 @@ def print_client_messages_to_console():
         else:
             break
 
+def block_until_received_response(response_id_count):
+    global running
+    global history_in
+
+    ############
+    #acts as a "Block" to the current thread until we get a response from the user 
+    
+    while True:
+        if running:
+
+            #check if any of the packets have the matching response id
+            for packet in history_in:
+                if len(history_in)!= 0 and packet["response_id"] == response_id_count:
+                    response_id_count += 1
+                    return packet
+
+        else:
+            break
+    ############
+    
+
+
+
 def main():
     # is the server running
     global running 
@@ -522,11 +569,12 @@ def main():
 
     
     response_id_count = 1
+    #game.player_1.board.place_ships_manually( game.player_1, response_id_count, SHIPS)
 
     while True: 
         #if the server is still running 
         if running:
-            time.sleep(0.5)
+            time.sleep(0.01)
 
             #THIS IS THE GAME LOGIC IN HERE 
             
@@ -543,28 +591,14 @@ def main():
             board_string = game.waiting_player.board.get_string_display_grid(False)
             game.current_player.send_packet_to_client(board_string, False)
 
-
+            ## Blocks this thread here until gets a response 
             game.current_player.send_packet_to_client("\nEnter coordinate to fire at (e.g. B5):", response_id_count)
-            
-
-            ############
-            #acts as a "Block" to the current thread until we get a response from the user 
-            continue_flag = False
-            while True:
-                if running:
-                    if len(history_in)!= 0 and history_in[-1]["response_id"] == response_id_count:
-                        continue_flag = True
-
-                    if continue_flag : 
-                        break
-                else:
-                    break
-            ############
+            guess = block_until_received_response(response_id_count)["message"]
             response_id_count += 1
-
-            #check if this is right?
-            guess = history_in[-1]["message"]
-            print("Guess was " + str(guess))
+            
+            
+            
+            #print("Guess was " + str(guess))
 
 
             if guess.lower() == 'quit':
@@ -574,7 +608,13 @@ def main():
                 return
             
             try:
-                row, col = parse_coordinate(guess)
+                row, col, error_check = parse_coordinate(guess)
+
+                if error_check == "ERROR":
+                    raise ValueError("Your coordinate was out of scope ")
+                    
+
+
                 result, sunk_name = game.waiting_player.board.fire_at(row, col)
                 
                 game.current_player.add_move()
@@ -607,7 +647,7 @@ def main():
 
             except ValueError as e:
                 game.current_player.send_packet_to_client(f"Invalid input: {e}", False)
-                successful_turn = False 
+                game.successful_turn = False 
 
             if game.successful_turn: 
                 if game.current_player == game.player_1:
@@ -617,101 +657,7 @@ def main():
 
             print("WE COMPLETED THE LOOOOP")
 
-            '''
-            #send the state of your board and of the opposite players board
             
-            send(current_player, "\nThis is the state of your board")
-            send_board(current_player, current_player, True) #send unhidden version 
-            send(current_player, "\ngThis is the state of your opponents board")
-            send_board(current_player, waiting_player, False) #send hidden version
-            send(current_player, "Enter coordinate to fire at (e.g. B5):")
-            send(current_player, "OVER")
-            
-            
-        
-            #wait for player response
-            guess = recv(current_player) #blocking
-
-            #if quit then quit
-            if guess.lower() == 'quit':
-                send("Thanks for playing. Goodbye.")
-                return
-
-
-
-            try:
-                row, col = parse_coordinate(guess)
-                result, sunk_name = waiting_player.board.fire_at(row, col)
-                moves += 1
-
-                if result == 'hit':
-                    if sunk_name:
-                        send(current_player, f"HIT! You sank the {sunk_name}!")
-                        successful_turn = True 
-                    else:
-                        send(current_player, "HIT!")
-                        successful_turn = True 
-                    if waiting_player.board.all_ships_sunk():
-                        send_board(current_player, current_player.board)
-                        send(f"Congratulations! You sank all ships in {moves} moves.")
-                        successful_turn = True 
-                        return
-                elif result == 'miss':
-                    send(current_player, "MISS!")
-                    successful_turn = True 
-                elif result == 'already_shot':
-                    send(current_player, "You've already fired at that location.")
-                    successful_turn = False
-                    
-                
-                #send over token 
-                #send(current_player, "OVER") 
-                
-            except ValueError as e:
-                send(current_player,f"Invalid input: {e}")
-                successful_turn = False  
-            
-            
-
-            
-            
-            '''
-            
-
-
-            '''
-            print(f"Main server THREAD:  {time.time()}")
-            print("\n")
-            print("history_in: " + str(history_in))
-
-            message = "bhflbashlbsajkldbjiasdno;"
-            packet_dict = {
-                "time" : time.time(),
-                "message" : message,
-                "checksum" : hash(time.time())
-            }
-
-            #"pack"  the packet into a json thing
-            packed = json.dumps(packet_dict) + "\n"
-            print("sent packet to player 1 ")
-            battleship_game.player_1.wfile.write(packed)
-            battleship_game.player_1.wfile.flush()
-
-            message = "different message"
-            packet_dict = {
-                "time" : time.time(),
-                "message" : message,
-                "checksum" : hash(time.time())
-            }
-
-            #"pack"  the packet into a json thing
-            packed = json.dumps(packet_dict) + "\n"
-            print("sent packet to player 2")
-            battleship_game.player_2.wfile.write(packed)
-            battleship_game.player_2.wfile.flush()
-            
-            
-            '''
         else:
             break
             
