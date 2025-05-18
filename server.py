@@ -562,7 +562,7 @@ def main():
     game.player_1.set_board(Board(BOARD_SIZE))
     game.player_2.set_board(Board(BOARD_SIZE))
     #game.player_1.board.place_ships_randomly(SHIPS)
-    game.player_2.board.place_ships_randomly(SHIPS)
+    #game.player_2.board.place_ships_randomly(SHIPS)
 
     
     #send welcome message
@@ -575,9 +575,13 @@ def main():
     
 
     
-    
+    game.player_2.send_packet_to_client("Waiting for Player 1 to manual place their ships", False)
     game.player_1.board.place_ships_manually( game.player_1, SHIPS)
+    game.player_1.send_packet_to_client("Waiting for Player 2 to manual place their ships", False)
+    game.player_2.board.place_ships_manually( game.player_2, SHIPS)
 
+    ### cut off here 
+    
     while True: 
         #if the server is still running 
         if running:
@@ -610,7 +614,7 @@ def main():
 
             if guess.lower() == 'quit':
                 
-                game.player_1.send_packet_to_client("Thanks for playing. Goodbye.", False)
+                game.current_player.send_packet_to_client("Thanks for playing. Goodbye.", False)
                 running = False
                 return
             
@@ -667,7 +671,8 @@ def main():
             
         else:
             break
-            
+    
+
 
 
 
