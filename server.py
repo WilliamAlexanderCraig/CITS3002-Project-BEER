@@ -402,7 +402,7 @@ class GameState:
     def set_successful_turn(self, successful_turn):
         self.successful_turn = successful_turn
 
-def game_logic(self, GameState):
+def game_logic(GameState):
 
     #Send the current state of both boards to the current player
 
@@ -451,6 +451,29 @@ class Client: #this is renamed from "Player"
 
     def set_moves(self, moves):
         self.moves = moves
+    
+    def send_packet_to_client(self, message, need_response):
+
+        
+        packet_dict = {
+            "time" : time.time(),
+            "message" : message,
+            "checksum" : hash(time.time()),
+            "to_addr" : self.address,
+            "from_addr" : "127.0.0.1:8081",
+            "read" : False,
+            "need_response" : need_response
+        }
+
+        #"pack"  the packet into a json thing
+        packed = json.dumps(packet_dict) + "\n"
+
+        print(f"sent packet to {self.address}")
+        self.wfile.write(packed)
+        self.wfile.flush()
+
+
+        
 
 def setup(s):
 
@@ -539,34 +562,47 @@ def main():
     setup(s)
     
     #Set up the game 
-    battleship_game = GameState()
+    game = GameState()
     #set player 1 and player 2
     for connection in connections:
         if connection.player_num == 1:
-            battleship_game.set_player_1(connection)
+            game.set_player_1(connection)
         if connection.player_num == 2:
-            battleship_game.set_player_2(connection)
+            game.set_player_2(connection)
     #   Set current and waiting players
-    battleship_game.set_current_and_waiting_player(battleship_game.player_1, battleship_game.player_2)
+    game.set_current_and_waiting_player(game.player_1, game.player_2)
 
 
     #create a listening thread for each player 
     #TODO make this a loop
-    listen_thread_player_1 = threading.Thread(target=listen_for_player_messages, args=(battleship_game.player_1,))
-    listen_thread_player_2 = threading.Thread(target=listen_for_player_messages, args=(battleship_game.player_2,))
+    listen_thread_player_1 = threading.Thread(target=listen_for_player_messages, args=(game.player_1,))
+    listen_thread_player_2 = threading.Thread(target=listen_for_player_messages, args=(game.player_2,))
     listen_thread_player_1.start()
     listen_thread_player_2.start()
 
     print("active threads: " + str(threading.active_count()))
 
+
     
+    #send welcome message
+    message = "Welcome to Online Single-Player Battleship! Try to sink all the ships. Type 'quit' to exit."
+    game.player_1.send_packet_to_client(message, False)
+    game.player_2.send_packet_to_client(message, False)
+    game.player_1.send_packet_to_client("You are Player 1", False)
+    game.player_2.send_packet_to_client("You are Player 2", False)
+
+    
+
+
     while True: 
         #if the server is still running 
         if running:
             time.sleep(0.5)
 
             #game_logic
-            game_logic(battleship_game)
+            game_logic(game)
+
+            
 
 
             '''

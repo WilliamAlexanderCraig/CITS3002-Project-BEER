@@ -55,15 +55,17 @@ def listen_for_server_messages(rfile):
             time.sleep(0.5)
 
             #read the line and strip() to remove any whitespace
-            line = rfile.readline().strip()
+            packet = rfile.readline().strip()
             
             #check if the connection is broken
-            if not line:
-                print(f"Player {player.address} disconnected")
+            if not packet:
+                print(f"Server disconnected")
                 running = False
                 break
             
-            history_in.append(line)
+            dict_packet = json.loads(packet)
+
+            history_in.append(dict_packet)
         else:
             break
 
@@ -92,12 +94,35 @@ def main():
 
     thread = threading.Thread(target=listen_for_server_messages, args=(rfile,))
     thread.start()
+
+    def send_message_to_server(message):
+        pass
     
     while True:
             
         if running:
                 
-            time.sleep(0.5)
+            time.sleep(0.1)
+            
+            if len(history_in) != 0:
+                
+                #read the most recent message from the server (if it hasnt been read )
+                recent_packet = history_in[-1] 
+                if recent_packet["read"] != "True":
+                    print("[Server]: " + str(recent_packet["message"]))
+                    recent_packet["read"] = "True"
+
+                    if recent_packet["read"].strip() == "True":
+                        print(">>")
+                        response = input()
+
+            
+
+        else:
+            break
+            
+            
+            '''
             print("\n\n")
             print(f"Main client thread: {time.time()}")
             print("\n")
@@ -115,6 +140,8 @@ def main():
             print("sent packet to Server ")
             wfile.write(packed)
             wfile.flush()
+            '''
+            
 
         
 
