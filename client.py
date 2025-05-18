@@ -34,14 +34,45 @@ import json
 import time
 import threading
 
-def print_once(thing):
-    print(thing)
 
-input_requested_from_server = False
+def listen_for_server_messages(rfile):
+#     """Continuously receive and display messages from the server"""
+    #reference to the global running variable
+    global running 
+    #reference to the global history_in variable
+    global history_in
 
-client_history = []
+    while True:
+
+        if running:
+            #run 2 times per second 
+            #I believe that the sleep call allows the threads to run at the same time 
+            time.sleep(0.5)
+
+            #read the line and strip() to remove any whitespace
+            line = rfile.readline().strip()
+            
+            #check if the connection is broken
+            if not line:
+                print(f"Player {player.address} disconnected")
+                running = False
+                break
+            
+            history_in.append(line)
+        else:
+            break
+
+
+
 
 def main():
+
+    global running
+    running = True
+
+    global history_in
+    history_in = []
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print("Connecting to server...")
         s.connect((HOST, PORT))
@@ -50,98 +81,23 @@ def main():
 
         rfile = s.makefile('r')
         wfile = s.makefile('w')
-        communicator = communication.Communicator()
-        communicator.set_run_when_new_packet(print_once)
-        communicator.set_rw_files(rfile,wfile)
-        #communicator.start_listening_thread(history)
+        
+       
 
-        thread = threading.Thread(target=communicator.communicator_listening_loop, args=(client_history,))
+        thread = threading.Thread(target=listen_for_server_messages, args=(rfile,))
         thread.start()
         
-        running = True
+        while True:
+             
+            if running:
+                 
+                time.sleep(0.5)
+                print("\n\n")
+                print(f"Main client thread: {time.time()}")
+                print("\n")
+                print(history_in)
 
-        #
-        # 
-        # time.sleep(10)
-        '''
-        try:
-            while running:
-
-                #communicator.lock.aquire()
-                print("alive " + str(time.time()))
-                print("active threads " + str(threading.active_count()))
-
-                print(history)
-
-                time.sleep(1)
-                
-                if input_requested_from_server == True:
-                    print(">>")
-                    input_string = input()
-                #communicator.lock.release()
-            
-
-                
-                line = rfile.readline() 
-                
-                #if there is no response when the loop comes back to here 
-                #then the server is disconnected
-                if not line:
-                    print("[INFO] Server disconnected.")
-                    break
-
-                line = line.strip()
-
-
-                #Print the game board
-                if line == "GRID":
-                    # Begin reading board lines
-                    print("\n[Board]")
-                    while True:
-                        board_line = rfile.readline()
-                        if not board_line or board_line.strip() == "":
-                            break
-                        print(board_line.strip())
-                
-
-                # if the message is "OVER" that means the server is done and will wait for user response
-                elif(line == "OVER"):
-                    
-                    user_input = input(">> ") # this should halt the thread until something is entered in the terminal
-                    wfile.write(user_input + '\n')
-                    wfile.flush()
-    
-                else:
-                    #this is a normal message
-                    print(line)
-                    pass
-                
-                
-                    
-                
-
-
-        except KeyboardInterrupt:
-            print("\n[INFO] Client exiting.")
-            communicator.stop_listening_thread()
-        '''
         
-
-# HINT: A better approach would be something like:
-#
-# def receive_messages(rfile):
-#     """Continuously receive and display messages from the server"""
-#     while running:
-#         line = rfile.readline()
-#         if not line:
-#             print("[INFO] Server disconnected.")
-#             break
-#         # Process and display the message
-#
-# def main():
-#     # Set up connection
-#     # Start a thread for receiving messages
-#     # Main thread handles sending user input
 
 if __name__ == "__main__":
     main()

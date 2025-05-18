@@ -8,6 +8,7 @@ TODO: Fix the message synchronization issue using concurrency (Tier 1, item 1).
 """
 
 import socket
+import time
 
 HOST = '127.0.0.1'
 PORT = 5000
@@ -23,6 +24,11 @@ PORT = 5000
 # import threading
 
 def main():
+
+    global running
+    running = True
+
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         rfile = s.makefile('r')
@@ -30,9 +36,11 @@ def main():
 
         try:
             while True:
-                # PROBLEM: This design forces the client to alternate between
-                # reading a message and sending input, which doesn't work when
-                # the server sends multiple messages in sequence
+
+                while running:
+                    time.sleep(0.5)
+
+                
                 
                 line = rfile.readline()
                 if not line:

@@ -15,6 +15,7 @@ import random
 import time
 import threading
 import battleship
+import json
 
 #import multiprocessing
 #import platform
@@ -40,6 +41,7 @@ class Client: #this is renamed from "Player"
 
         #IP address and port of the client 
         self.address = address
+        self.connection = connection
 
 
         # player_num 
@@ -82,22 +84,19 @@ def setup(s):
         
         #wait until a player connects
         connection, client_addr = s.accept()
-        newPlayer = Client(s, connection, client_addr, player_connection) # make a new player object to store all the data about this connection
+        newPlayer = Client(connection, client_addr, player_connection) # make a new player object to store all the data about this connection
         
         print(f"[INFO] Client {player_connection} connected from {client_addr}")
         connections.append(newPlayer)
         
-        with connection:
-            rfile = connection.makefile('r')
-            wfile = connection.makefile('w')
-            newPlayer.set_rw_files(rfile,wfile)
+        
+        rfile = connection.makefile('r')
+        wfile = connection.makefile('w')
+        newPlayer.set_rw_files(rfile,wfile)
 
-        if player_connection == 1:
-            player_1 = newPlayer
-        elif player_connection == 2:
-            player_2 = newPlayer
-        else:
-            print("ERROR COME FIND ME ")
+        if(newPlayer.rfile == None):
+            print("BFIABLFKlABW HDILBAUILFBAWUI:FBAUWI")
+
         
         
     #check that both players exist 
@@ -105,27 +104,33 @@ def setup(s):
         print(f"First Player = {player_1.address}")
         print(f"Second Player = {player_2.address}") 
 
-def listen_for_player_messages(player):
+def listen_for_player_messages(client):
 #     """Continuously receive and display messages from the server"""
     #reference to the global running variable
     global running 
     #reference to the global history_in variable
     global history_in
 
-    while running:
-        #run 2 times per second 
-        #I believe that the sleep call allows the threads to run at the same time 
-        time.sleep(0.5)
+    while True:
+        
+        if running:
+            #run 2 times per second 
+            #I believe that the sleep call allows the threads to run at the same time 
+            time.sleep(0.5)
 
-        #read the line and strip() to remove any whitespace
-        line = player.rfile.readline().strip()
-        
-        #check if the connection is broken
-        if not line:
-            print(f"Player {player.address} disconnected")
+            #read the line and strip() to remove any whitespace
+            line = client.rfile.readline().strip()
+            
+            #check if the connection is broken
+            if not line:
+                print(f"Player {client.address} disconnected")
+                running = False
+                break
+            
+            history_in.append(line)
+    
+        else:
             break
-        
-        history_in.append(line)
 
 
 
@@ -153,10 +158,19 @@ def main():
 
     print("Begin game")
 
+    #check that rfile exists
+    if connections[0] == None:
+        print(f"Connections 0 doesnt exist")
+        return
+    
+    if connections[0].rfile == None:
+        print(f"Connections 0 rfile doesnt exist")
+        return
+
     #create a listening thread for each player 
     #TODO make this a loop
-    listen_thread_player_1 = threading.Thread()
-    listen_thread_player_2 = threading.Thread()
+    listen_thread_player_1 = threading.Thread(target=listen_for_player_messages, args=(connections[0],))
+    listen_thread_player_2 = threading.Thread(target=listen_for_player_messages, args=(connections[1],))
     listen_thread_player_1.start()
     listen_thread_player_2.start()
 
@@ -168,7 +182,26 @@ def main():
             time.sleep(0.5)
 
             print(f"Main server loop:  {time.time()}")
+            print("\n")
+            print("history_in: " + str(history_in))
 
+            message = "bhflbashlbsajkldbjiasdno;"
+            packet_dict = {
+                "time" : time.time(),
+                "message" : message,
+                "checksum" : hash(time.time())
+            }
+
+            #"pack"  the packet into a json thing
+            packed = json.dumps(packet_dict) + "\n"
+            print("sent packet")
+            connections[0].wfile.write(packed)
+            connections[0].wfile.flush()
+        
+        
+        
+        else:
+            break
             
 
 
