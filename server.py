@@ -307,8 +307,9 @@ def parse_coordinate(coord_str):
     row = ord(row_letter) - ord('A')
     col = int(col_digits) - 1  # zero-based
 
+    #andrew will change 
 
-    error_check = "ERROR"
+    error_check = "ALL GOOD"
 
     #if row > J then error_check == "ERROR"
 
