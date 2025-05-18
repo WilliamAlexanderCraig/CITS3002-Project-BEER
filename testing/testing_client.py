@@ -28,6 +28,8 @@ def looping(readfile):
                     running = False
                     break
             #print(line)
+
+            line.strip()
             history.append(line)
             
         else:
@@ -71,9 +73,9 @@ def main():
         if running == True:
             if history:
                 last = history[-1]
-                last = last.strip()
                 unstringed_json = json.loads(last)
                 print(unstringed_json["checksum"]) # please help with this bit
+                print(history)
         else:
             break
         time.sleep(0.1)

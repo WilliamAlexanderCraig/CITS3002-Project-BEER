@@ -24,7 +24,7 @@ def main ():
     
         
     
-    print("i think this is blocked ")
+    
 
 
     while True:
@@ -43,7 +43,7 @@ def main ():
             packed = json.dumps(packet_dict) + "\n"
 
             
-            
+            print("sent packet")
             wfile.write(packed)
             wfile.flush()
         else:

@@ -11,14 +11,10 @@ However, if you want to support multiple clients (i.e. progress through further 
 """
 
 import socket
-from battleship import run_single_player_game_online
-
-
-import battleship
-
-import communication
-
+import random
+import time
 import threading
+import battleship
 
 #import multiprocessing
 #import platform
@@ -28,34 +24,36 @@ import threading
 HOST = '127.0.0.1'
 PORT = 8081 #port 5000 was taken on my pc for some reason
 
-num_players = 2 # flag to see if there are two players with active connections
-
-players = [] # list of all the Player class objects
+#players = [] # list of all the Player class objects
 player_threads = []
+
+connections = []
+
+
+player_1 = None
+player_2 = None
 
 
 #Class to hold all data for each client 
 class Client: #this is renamed from "Player"
-    def __init__(self, from_socket, to_socket, address):
-        #self.connection = connection
-        
-        self.from_socket = from_socket
-        self.to_socket = to_socket
+    def __init__(self, connection, address, player_num):
 
-        self.communicator = communication.Communicator()
-        self.communicator.set_run_when_new_packet(self.received_new_packet_from_client)
+        #IP address and port of the client 
         self.address = address
 
-        self.is_player = True # use this later when we have spectators and such
-   
-    def received_new_packet_from_client(self, packet):
-        pass
 
-    def set_rw_files(self,rfile,wfile):
-        self.communicator.rfile = rfile
-        self.communicator.wfile = wfile
+        # player_num 
+        #   If player_num = 0 then the player is not playing 
+        #   If player_num = 1 then the player is playing and is player 1 
+        #   If player_num = 2 then the player is playing and is player 2 
+        self.player_num = player_num
+
         
 
+    def set_rw_files(self,rfile,wfile):
+        self.rfile = rfile
+        self.wfile = wfile
+        
     def set_board(self, BOARD):
         self.board = BOARD
 
@@ -75,46 +73,75 @@ def setup(s):
     print(f"[INFO] Server listening on {HOST}:{PORT}")
     s.bind((HOST, PORT)) # creates a pseudo server on this address
         
-    #loop to get connections 
-    for player_connection in range(num_players):
+    #loop to get connections
+    # Get 2 connections 
+    for player_connection in [1,2]:
         
         print(f"[INFO] Waiting for player {player_connection} connection")
         s.listen(1) # open for 1 availiable connection
         
         #wait until a player connects
-        socket_to_client, client_addr = s.accept()
-        newPlayer = Client(s, socket_to_client, client_addr) # make a new player object to store all the data about this connection
+        connection, client_addr = s.accept()
+        newPlayer = Client(s, connection, client_addr, player_connection) # make a new player object to store all the data about this connection
         
         print(f"[INFO] Client {player_connection} connected from {client_addr}")
-        players.append(newPlayer)
+        connections.append(newPlayer)
         
-        with socket_to_client:
-            rfile = socket_to_client.makefile('r')
-            wfile = socket_to_client.makefile('w')
+        with connection:
+            rfile = connection.makefile('r')
+            wfile = connection.makefile('w')
             newPlayer.set_rw_files(rfile,wfile)
-        
+
+        if player_connection == 1:
+            player_1 = newPlayer
+        elif player_connection == 2:
+            player_2 = newPlayer
+        else:
+            print("ERROR COME FIND ME ")
         
         
     #check that both players exist 
-    if players[0] != None and players[1] != None:
-        print(f"First Player = {players[0].address}")
-        print(f"Second Player = {players[1].address}") 
+    if player_1 != None and player_2 != None:
+        print(f"First Player = {player_1.address}")
+        print(f"Second Player = {player_2.address}") 
 
 def listen_for_player_messages(player):
 #     """Continuously receive and display messages from the server"""
-    running = True
+    #reference to the global running variable
+    global running 
+    #reference to the global history_in variable
+    global history_in
+
     while running:
-        line = player.rfile.readline()
+        #run 2 times per second 
+        #I believe that the sleep call allows the threads to run at the same time 
+        time.sleep(0.5)
+
+        #read the line and strip() to remove any whitespace
+        line = player.rfile.readline().strip()
+        
+        #check if the connection is broken
         if not line:
             print(f"Player {player.address} disconnected")
             break
-        print(line)
+        
+        history_in.append(line)
 
 
 
         
 
 def main():
+    # is the server running
+    global running 
+    running = True
+
+    #history of all packets received by the server
+    global history_in
+    history_in = []
+
+    #history of all packets sent by the server 
+    history_out = []
 
     ##################
     # Set up the socket and establish connections with clients
@@ -126,17 +153,26 @@ def main():
 
     print("Begin game")
 
-    player_1 = players[0]
-    player_2 = players[1]
+    #create a listening thread for each player 
+    #TODO make this a loop
+    listen_thread_player_1 = threading.Thread()
+    listen_thread_player_2 = threading.Thread()
+    listen_thread_player_1.start()
+    listen_thread_player_2.start()
 
-    player_1_history = []
-    player_2_history = []
-
-    player_1.communicator.start_listening_thread(player_1_history)
-    player_2.communicator.start_listening_thread(player_2_history)
     print("active threads: " + str(threading.active_count()))
 
-    battleship.run_dual_player_game_online(player_1,player_2)
+    while True: 
+        #if the server is still running 
+        if running:
+            time.sleep(0.5)
+
+            print(f"Main server loop:  {time.time()}")
+
+            
+
+
+    #battleship.run_dual_player_game_online(player_1,player_2)
 
     # Make a thread to listen for each player's incoming messages
     #player1_thread = threading.Thread(group=None, target=listen_for_player_messages, args=(players[0],))
