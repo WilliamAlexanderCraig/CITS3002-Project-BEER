@@ -30,13 +30,20 @@ connections = []
 #Battleships stuff
 #############
 BOARD_SIZE = 10
-SHIPS = [
-    ("Carrier", 5),
-    ("Battleship", 4),
-    ("Cruiser", 3),
-    ("Submarine", 3),
-    ("Destroyer", 2)
-]
+
+testing = True
+
+SHIPS = []
+if testing:
+    SHIPS = [("Dinghy",1)]
+else:
+    SHIPS = [
+        ("Carrier", 5),
+        ("Battleship", 4),
+        ("Cruiser", 3),
+        ("Submarine", 3),
+        ("Destroyer", 2)
+    ]
 
 class Board:
     """
@@ -548,7 +555,18 @@ def setup(s):
 
     #s stands for socket 
     print(f"[INFO] Server listening on {HOST}:{PORT}")
-    s.bind((HOST, PORT)) # creates a pseudo server on this address
+    s.bind((HOST, PORT))
+    '''
+    while True:
+        try:
+
+             # creates a pseudo server on this address
+            break
+        except:
+            print("didnt work, trying again in 5 seconds")
+            time.sleep(5)
+    '''
+    
         
     #loop to get connections
     # Get 2 connections 
