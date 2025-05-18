@@ -35,6 +35,11 @@ import time
 import threading
 
 
+
+
+
+
+
 def listen_for_server_messages(rfile):
 #     """Continuously receive and display messages from the server"""
     #reference to the global running variable
@@ -73,29 +78,43 @@ def main():
     global history_in
     history_in = []
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        print("Connecting to server...")
-        s.connect((HOST, PORT))
-        print("Successfully connected to server...")
-        print("Waiting for other player to connect...")
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    print("Connecting to server...")
+    server.connect((HOST, PORT))
+    print("Successfully connected to server...")
+    print("Waiting for other player to connect...")
 
-        rfile = s.makefile('r')
-        wfile = s.makefile('w')
-        
-       
+    rfile = server.makefile('r')
+    wfile = server.makefile('w')
+    
+    
 
-        thread = threading.Thread(target=listen_for_server_messages, args=(rfile,))
-        thread.start()
-        
-        while True:
-             
-            if running:
-                 
-                time.sleep(0.5)
-                print("\n\n")
-                print(f"Main client thread: {time.time()}")
-                print("\n")
-                print(history_in)
+    thread = threading.Thread(target=listen_for_server_messages, args=(rfile,))
+    thread.start()
+    
+    while True:
+            
+        if running:
+                
+            time.sleep(0.5)
+            print("\n\n")
+            print(f"Main client thread: {time.time()}")
+            print("\n")
+            print(history_in)
+
+            message = "message to server;"
+            packet_dict = {
+                "time" : time.time(),
+                "message" : message,
+                "checksum" : hash(time.time())
+            }
+
+            #"pack"  the packet into a json thing
+            packed = json.dumps(packet_dict) + "\n"
+            print("sent packet to Server ")
+            wfile.write(packed)
+            wfile.flush()
 
         
 
