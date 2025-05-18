@@ -88,13 +88,14 @@ class Board:
                     placed = True
 
 
-    def place_ships_manually(self, client, response_id_count, ships=SHIPS):
+    def place_ships_manually(self, client, ships=SHIPS):
         """
         Prompt the user for each ship's starting coordinate and orientation (H or V).
         Validates the placement; if invalid, re-prompts.
         """
         global history_in
         global running
+        global response_id_count
 
 
         client.send_packet_to_client("\nPlease place your ships manually on the board.", False)
@@ -111,19 +112,19 @@ class Board:
                 
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Enter starting coordinate (e.g. A1): ", response_id_count)
-                coord_str = block_until_received_response(response_id_count)["message"]
-                response_id_count += 1
+                coord_str = block_until_received_response()["message"]
+                #response_id_count += 1
             
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Orientation? Enter 'H' (horizontal) or 'V' (vertical): ", response_id_count)
-                orientation_str = block_until_received_response(response_id_count)["message"]
-                response_id_count += 1
+                orientation_str = block_until_received_response()["message"]
+                #response_id_count += 1
 
                 
                 try:
-                    row, col = parse_coordinate(coord_str)
+                    row, col, error_check = parse_coordinate(coord_str)
                 except ValueError as e:
-                    client.send_packet_to_client(f"  [!] Invalid coordinate: {e}", False)
+                    client.send_packet_to_client(f"  CASE 1 [!] Invalid coordinate: {e}", False)
                     continue
 
                 # Convert orientation_str to 0 (horizontal) or 1 (vertical)
@@ -484,9 +485,10 @@ def print_client_messages_to_console():
         else:
             break
 
-def block_until_received_response(response_id_count):
+def block_until_received_response():
     global running
     global history_in
+    global response_id_count
 
     ############
     #acts as a "Block" to the current thread until we get a response from the user 
@@ -515,6 +517,10 @@ def main():
     #history of all packets received by the server
     global history_in
     history_in = []
+    
+    global response_id_count
+    response_id_count = 1
+
 
     #history of all packets sent by the server 
     history_out = []
@@ -555,7 +561,7 @@ def main():
     
     game.player_1.set_board(Board(BOARD_SIZE))
     game.player_2.set_board(Board(BOARD_SIZE))
-    game.player_1.board.place_ships_randomly(SHIPS)
+    #game.player_1.board.place_ships_randomly(SHIPS)
     game.player_2.board.place_ships_randomly(SHIPS)
 
     
@@ -569,8 +575,8 @@ def main():
     
 
     
-    response_id_count = 1
-    #game.player_1.board.place_ships_manually( game.player_1, response_id_count, SHIPS)
+    
+    game.player_1.board.place_ships_manually( game.player_1, SHIPS)
 
     while True: 
         #if the server is still running 
@@ -594,8 +600,8 @@ def main():
 
             ## Blocks this thread here until gets a response 
             game.current_player.send_packet_to_client("\nEnter coordinate to fire at (e.g. B5):", response_id_count)
-            guess = block_until_received_response(response_id_count)["message"]
-            response_id_count += 1
+            guess = block_until_received_response()["message"]
+            #response_id_count += 1
             
             
             
@@ -647,7 +653,7 @@ def main():
                     game.successful_turn = False
 
             except ValueError as e:
-                game.current_player.send_packet_to_client(f"Invalid input: {e}", False)
+                game.current_player.send_packet_to_client(f" CASE 2 Invalid input: {e}", False)
                 game.successful_turn = False 
 
             if game.successful_turn: 
