@@ -591,6 +591,8 @@ def main():
     game.player_1.send_packet_to_client("You are Player 1", False)
     game.player_2.send_packet_to_client("You are Player 2", False)
 
+    game.player_1.send_packet_to_client("send me something", True)
+
     
 
 

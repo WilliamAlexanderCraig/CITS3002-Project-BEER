@@ -69,7 +69,22 @@ def listen_for_server_messages(rfile):
         else:
             break
 
+def send_message_to_server(wfile, message):
+        packet_dict = {
+            "time" : time.time(),
+            "message" : message,
+            "checksum" : hash(time.time()),
+            "to_addr" : "127.0.0.1:8081",
+            "from_addr" : ,
+            "read" : False,
+        }
 
+        #"pack"  the packet into a json thing
+        packed = json.dumps(packet_dict) + "\n"
+
+        print(f"sent packet to Server")
+        wfile.write(packed)
+        wfile.flush()
 
 
 def main():
@@ -95,8 +110,7 @@ def main():
     thread = threading.Thread(target=listen_for_server_messages, args=(rfile,))
     thread.start()
 
-    def send_message_to_server(message):
-        pass
+    
     
     while True:
             
@@ -108,13 +122,13 @@ def main():
                 
                 #read the most recent message from the server (if it hasnt been read )
                 recent_packet = history_in[-1] 
-                if recent_packet["read"] != "True":
+                if recent_packet["read"] != True:
                     print("[Server]: " + str(recent_packet["message"]))
-                    recent_packet["read"] = "True"
+                    recent_packet["read"] = True
 
-                    if recent_packet["read"].strip() == "True":
-                        print(">>")
-                        response = input()
+                    if recent_packet["need_response"] == True:
+                        response = input(">>")
+                        print("Sending to server: " + response)
 
             
 
