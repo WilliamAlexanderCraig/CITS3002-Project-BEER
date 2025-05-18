@@ -14,7 +14,6 @@ import socket
 import random
 import time
 import threading
-import battleship
 import json
 
 
@@ -320,27 +319,6 @@ class GameState:
     def set_successful_turn(self, successful_turn):
         self.successful_turn = successful_turn
 
-def game_logic(GameState):
-
-    #Send the current state of both boards to the current player
-
-
-    #Send "Waiting for other player to choose coordinate" to waiting player
-
-    #Get the "guess" from the current player
-
-    #If the "guess" is "quit" then remove that player 
-
-
-        #parse the coordinate
-
-        #
-
-
-
-
-
-    pass
 
 
 #Class to hold all data for each client 

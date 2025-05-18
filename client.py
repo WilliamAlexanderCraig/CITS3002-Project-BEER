@@ -8,11 +8,9 @@ TODO: Fix the message synchronization issue using concurrency (Tier 1, item 1).
 """
 
 import socket
-
-import multiprocessing
-import platform
-if platform.system() == "Darwin":
-            multiprocessing.set_start_method("fork") 
+import json
+import time
+import threading
 
 
 HOST = '127.0.0.1'
@@ -29,10 +27,7 @@ PORT = 8081
 # import threading
 
 
-import communication
-import json
-import time
-import threading
+
 
   
 
