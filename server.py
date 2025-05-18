@@ -245,6 +245,35 @@ class Board:
             row_label = chr(ord('A') + r)
             row_str = " ".join(grid_to_print[r][c] for c in range(self.size))
             print(f"{row_label:2} {row_str}")
+    
+    def get_string_display_grid(self, show_hidden_board=False):
+        """
+        Print the board as a 2D grid.
+        
+        If show_hidden_board is False (default), it prints the 'attacker' or 'observer' view:
+        - '.' for unknown cells,
+        - 'X' for known hits,
+        - 'o' for known misses.
+        
+        If show_hidden_board is True, it prints the entire hidden grid:
+        - 'S' for ships,
+        - 'X' for hits,
+        - 'o' for misses,
+        - '.' for empty water.
+        """
+        # Decide which grid to print
+        grid_to_print = self.hidden_grid if show_hidden_board else self.display_grid
+
+        # Column headers (1 .. N) 
+        response_string = "\n  " + "".join(str(i + 1).rjust(2) for i in range(self.size))
+        response_string += "\n"
+        # Each row labeled with A, B, C, ...
+        for r in range(self.size):
+            row_label = chr(ord('A') + r)
+            row_str = " ".join(grid_to_print[r][c] for c in range(self.size))
+            response_string += f"{row_label:2} {row_str}\n"
+        
+        return response_string
 
 
 def parse_coordinate(coord_str):
@@ -381,6 +410,7 @@ def run_single_player_game_online(rfile, wfile):
 #############
 
 #Class to hold state of game 
+#container to hold all this information about a particular game
 class GameState:
     def __init__(self):
         self.player_1 = None
@@ -388,6 +418,7 @@ class GameState:
         self.current_player = None
         self.waiting_player = None
         self.successful_turn = False
+    
     
     def set_player_1(self, player_1):
         self.player_1 = player_1
@@ -433,6 +464,7 @@ class Client: #this is renamed from "Player"
         self.address = address
         self.connection = connection
         self.port = str(address[1])
+        self.moves = 0
 
 
         # player_num 
@@ -440,8 +472,10 @@ class Client: #this is renamed from "Player"
         #   If player_num = 1 then the player is playing and is player 1 
         #   If player_num = 2 then the player is playing and is player 2 
         self.player_num = player_num
+        self.board = None
 
-        
+    def set_board(self,board):
+        self.board = board
 
     def set_rw_files(self,rfile,wfile):
         self.rfile = rfile
@@ -450,11 +484,10 @@ class Client: #this is renamed from "Player"
     def set_board(self, BOARD):
         self.board = BOARD
 
-    def set_moves(self, moves):
-        self.moves = moves
+    def add_move(self):
+        self.moves += 1
     
     def send_packet_to_client(self, message, response_id):
-
         
         packet_dict = {
             "time" : time.time(),
@@ -549,6 +582,7 @@ def print_client_messages_to_console():
     while True:
         if running:
 
+            time.sleep(0.1)
             if len(history_in) != 0:
                         
                 #read the most recent message from the server (if it hasnt been read )
@@ -604,6 +638,13 @@ def main():
     print("active threads: " + str(threading.active_count()))
 
 
+    #create boards for players
+    
+    game.player_1.set_board(Board(BOARD_SIZE))
+    game.player_2.set_board(Board(BOARD_SIZE))
+    game.player_1.board.place_ships_randomly(SHIPS)
+    game.player_2.board.place_ships_randomly(SHIPS)
+
     
     #send welcome message
     message = "Welcome to Online Single-Player Battleship! Try to sink all the ships. Type 'quit' to exit."
@@ -612,21 +653,164 @@ def main():
     game.player_1.send_packet_to_client("You are Player 1", False)
     game.player_2.send_packet_to_client("You are Player 2", False)
 
-    game.player_1.send_packet_to_client("send me something", 1)
-
     
 
+    
+    response_id_count = 1
 
     while True: 
         #if the server is still running 
         if running:
             time.sleep(0.5)
 
-            #game_logic
-            game_logic(game)
+            #THIS IS THE GAME LOGIC IN HERE 
+            
+            game.successful_turn = False
 
             
-                     
+            #send CURRENT PLAYERS board
+            game.current_player.send_packet_to_client("\nThis is the state of your board", False)
+            board_string = game.current_player.board.get_string_display_grid(True)
+            game.current_player.send_packet_to_client(board_string, False)
+
+            #send WAITING PLAYERS board
+            game.current_player.send_packet_to_client("\nThis is the state of your opponents board", False)
+            board_string = game.waiting_player.board.get_string_display_grid(False)
+            game.current_player.send_packet_to_client(board_string, False)
+
+
+            game.current_player.send_packet_to_client("\nEnter coordinate to fire at (e.g. B5):", response_id_count)
+            
+
+            ############
+            #acts as a "Block" to the current thread until we get a response from the user 
+            continue_flag = False
+            while True:
+                if running:
+                    if len(history_in)!= 0 and history_in[-1]["response_id"] == response_id_count:
+                        continue_flag = True
+
+                    if continue_flag : 
+                        break
+                else:
+                    break
+            ############
+            response_id_count += 1
+
+            #check if this is right?
+            guess = history_in[-1]["message"]
+            print("Guess was " + str(guess))
+
+
+            if guess.lower() == 'quit':
+                
+                game.player_1.send_packet_to_client("Thanks for playing. Goodbye.", False)
+                running = False
+                return
+            
+            try:
+                row, col = parse_coordinate(guess)
+                result, sunk_name = game.waiting_player.board.fire_at(row, col)
+                
+                game.current_player.add_move()
+
+                if result == 'hit':
+                    if sunk_name:
+                        game.current_player.send_packet_to_client(f"HIT! You sank the {sunk_name}!", False)
+                        game.successful_turn = True 
+                    else:
+                        game.current_player.send_packet_to_client(f"HIT! ", False)
+                        game.successful_turn = True 
+                    if game.waiting_player.board.all_ships_sunk():
+                        
+                        board_string = game.waiting_player.board.get_string_display_grid(True) 
+                        game.current_player.send_packet_to_client(board_string, False)
+
+                        message = f"Congratulations! You sank all ships in {game.current_player.moves} moves."
+                        game.current_player.send_packet_to_client(message, False)
+                        
+                        game.successful_turn = True 
+                        return
+                elif result == 'miss':
+                    game.current_player.send_packet_to_client("MISS!", False)
+                    
+                    game.successful_turn = True 
+                elif result == 'already_shot':
+                    game.current_player.send_packet_to_client("You've already fired at that location.", False)
+                    
+                    game.successful_turn = False
+
+            except ValueError as e:
+                game.current_player.send_packet_to_client(f"Invalid input: {e}", False)
+                successful_turn = False 
+
+            if game.successful_turn: 
+                if game.current_player == game.player_1:
+                    game.set_current_and_waiting_player(game.player_2, game.player_1)
+                else:
+                    game.set_current_and_waiting_player(game.player_1, game.player_2)
+
+            print("WE COMPLETED THE LOOOOP")
+
+            '''
+            #send the state of your board and of the opposite players board
+            
+            send(current_player, "\nThis is the state of your board")
+            send_board(current_player, current_player, True) #send unhidden version 
+            send(current_player, "\ngThis is the state of your opponents board")
+            send_board(current_player, waiting_player, False) #send hidden version
+            send(current_player, "Enter coordinate to fire at (e.g. B5):")
+            send(current_player, "OVER")
+            
+            
+        
+            #wait for player response
+            guess = recv(current_player) #blocking
+
+            #if quit then quit
+            if guess.lower() == 'quit':
+                send("Thanks for playing. Goodbye.")
+                return
+
+
+
+            try:
+                row, col = parse_coordinate(guess)
+                result, sunk_name = waiting_player.board.fire_at(row, col)
+                moves += 1
+
+                if result == 'hit':
+                    if sunk_name:
+                        send(current_player, f"HIT! You sank the {sunk_name}!")
+                        successful_turn = True 
+                    else:
+                        send(current_player, "HIT!")
+                        successful_turn = True 
+                    if waiting_player.board.all_ships_sunk():
+                        send_board(current_player, current_player.board)
+                        send(f"Congratulations! You sank all ships in {moves} moves.")
+                        successful_turn = True 
+                        return
+                elif result == 'miss':
+                    send(current_player, "MISS!")
+                    successful_turn = True 
+                elif result == 'already_shot':
+                    send(current_player, "You've already fired at that location.")
+                    successful_turn = False
+                    
+                
+                #send over token 
+                #send(current_player, "OVER") 
+                
+            except ValueError as e:
+                send(current_player,f"Invalid input: {e}")
+                successful_turn = False  
+            
+            
+
+            
+            
+            '''
             
 
 

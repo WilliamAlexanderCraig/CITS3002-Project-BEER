@@ -331,7 +331,7 @@ def run_single_player_game_online(rfile, wfile):
     while True:
         send_board(board)
         send("Enter coordinate to fire at (e.g. B5):")
-        guess = recv()
+        guess = recv() # it will wait here, until there is something new on readfile
         if guess.lower() == 'quit':
             send("Thanks for playing. Goodbye.")
             return
