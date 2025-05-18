@@ -124,7 +124,7 @@ class Board:
                 try:
                     row, col, error_check = parse_coordinate(coord_str)
                 except ValueError as e:
-                    client.send_packet_to_client(f"  CASE 1 [!] Invalid coordinate: {e}", False)
+                    client.send_packet_to_client(f" [!] Invalid coordinate: {e}", False)
                     continue
 
                 # Convert orientation_str to 0 (horizontal) or 1 (vertical)
@@ -427,10 +427,7 @@ def play_game(game):
             game.current_player.send_packet_to_client("\nEnter coordinate to fire at (e.g. B5):", response_id_count)
             guess = block_until_received_response()["message"]
             
-            
-            
-            
-            
+        
             if guess.lower() == 'quit':
                 
                 game.current_player.send_packet_to_client("Thanks for playing. Goodbye.", False)
@@ -479,7 +476,7 @@ def play_game(game):
                     game.successful_turn = False
 
             except ValueError as e:
-                game.current_player.send_packet_to_client(f" CASE 2 Invalid input: {e}", False)
+                game.current_player.send_packet_to_client(f" Invalid input: {e}", False)
                 game.successful_turn = False 
 
             if game.successful_turn: 
