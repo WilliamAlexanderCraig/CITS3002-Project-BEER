@@ -847,7 +847,7 @@ def main():
             game = GameState()
             
             print("waiting for at least 2 clients")
-            print(connections)
+            print(f"Connections: {connections}")
             time.sleep(2)
 
             #check for at least 2 connections
@@ -914,7 +914,10 @@ def main():
             if len(connections) >= 2:
 
                 #choose 2 random players from the waiting room
-                temp = connections
+                temp = []
+                for connection in connections:
+                    temp.append(connection)
+
                 p1 = random.choice(temp)
                 temp.remove(p1)
                 p2 = random.choice(temp)
