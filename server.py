@@ -836,8 +836,7 @@ def main():
     global game
     game = GameState()
 
-    #global connections
-    #connections = []
+    
 
     ##################
     # Set up the socket and establish connections with clients
@@ -848,9 +847,6 @@ def main():
     
     listening_for_connections_thread = threading.Thread(target=listen_for_new_connections, args=(s,))
     listening_for_connections_thread.start()
-    
-    #listen_for_player_messages_thread = threading.Thread(target=listen_for_player_messages)
-    #listen_for_player_messages_thread.start()
 
     waiting_room_thread = threading.Thread(target=waiting_room)
     waiting_room_thread.start()
@@ -913,26 +909,29 @@ def main():
                     game.player_2.playing = False
                     continue
                 
-                play_game(game)
+                result, current_player = play_game(game)
                 game.is_playing = False
                 game.player_1.playing = False
                 game.player_2.playing = False
-                #result, current_player = play_game(game)
-                '''
+
+                #If the game was won 
                 if result == "win":
                     for player in game.players:
                         if player == current_player:
-                            player.send_packet_to_client("You Win :)", None)
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU WIN :)\n\n\n################################\n\n\n", None)
                         else:
-                            player.send_packet_to_client("You Lost :(", None)
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU LOST :(\n\n\n################################\n\n\n", None)
                 
                 elif result == "quit":
                     for player in game.players:
                         if player == current_player:
-                            player.send_packet_to_client("You Lost :(", None)
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU FORFEIT\n\n\n################################\n\n\n", None)
+                            connections.remove(player)
+                            player.connection.shutdown(socket.SHUT_RDWR)
+                            player.connection.close()
                         else:
-                            player.send_packet_to_client("You Win :)", None)
-                '''
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU WIN :)\n\n\n################################\n\n\n", None)
+                
                 
 
             #Have some mechanism to choose the players 
@@ -971,11 +970,29 @@ def main():
                     game.player_2.playing = False
                     continue
                 
-                play_game(game)
+                result, current_player = play_game(game)
                 game.is_playing = False
                 game.player_1.playing = False
                 game.player_2.playing = False
 
+                #If the game was won 
+                if result == "win":
+                    for player in game.players:
+                        if player == current_player:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU WIN :)\n\n\n################################\n\n\n", None)
+                        else:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU LOST :(\n\n\n################################\n\n\n", None)
+                
+                elif result == "quit":
+                    for player in game.players:
+                        if player == current_player:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU FORFEIT\n\n\n################################\n\n\n", None)
+                            connections.remove(player)
+                            player.connection.shutdown(socket.SHUT_RDWR)
+                            player.connection.close()
+                        else:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU WIN :)\n\n\n################################\n\n\n", None)
+                
 
                 
                 
