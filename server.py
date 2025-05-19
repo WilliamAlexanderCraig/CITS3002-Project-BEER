@@ -747,7 +747,7 @@ def waiting_room():
     global connections
     global game
     # Build out a message string, and then send to everyone in the waiting room every 5 seconds
-    #chnages
+   
     while True:
 
         print("WAITING ROOM ALIVE")
@@ -756,12 +756,12 @@ def waiting_room():
         if running:
             
 
-            time.sleep(5*refresh_rate)
+            time.sleep(1*refresh_rate)
 
             message = ""
 
             for connection in connections:
-                    if connection.playing == False:
+                    if game.is_playing == True and connection.playing == False:
                         message += str("\n\n#####################\n\n WAITING ROOM\n\n #####################\n\n")
                         message += str(f"\nPlayer 1 is {game.player_1.player_name}\n")
                         p1_board = str(game.player_1.board.get_string_display_grid(True)) #might need to be False KACHOW
@@ -934,16 +934,22 @@ def main():
                 game.set_player_2(p2)
                 game.set_current_and_waiting_player(game.player_1, game.player_2)
                 
-                #play_game(game)
+                
 
-
+                game.is_playing = True
+                game.player_1.playing = True
+                game.player_2.playing = True
                 if setup_game(game) == "QUIT":
                     #running = False
                     print("One of the players quit during the Setup Process")
+                    game.player_1.playing = False
+                    game.player_2.playing = False
                     continue
                 
-
                 play_game(game)
+                game.is_playing = False
+                game.player_1.playing = False
+                game.player_2.playing = False
 
 
                 
