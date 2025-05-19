@@ -22,6 +22,8 @@ HOST = '127.0.0.1'
 PORT = 8081 #port 5000 was taken on my pc for some reason
 
 
+time_out_wait_time = 10 #seconds
+
 
 connections = []
 
@@ -29,7 +31,7 @@ connections = []
 ##############
 #Battleships stuff
 #############
-BOARD_SIZE = 10
+BOARD_SIZE = 60
 
 testing = True
 
@@ -95,7 +97,7 @@ class Board:
                     placed = True
 
 
-    def place_ships_manually(self, client, ships=SHIPS):
+    def place_ships_manually(self, game, ships=SHIPS):
         """
         Prompt the user for each ship's starting coordinate and orientation (H or V).
         Validates the placement; if invalid, re-prompts.
@@ -119,12 +121,16 @@ class Board:
                 
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Enter starting coordinate (e.g. A1): ", response_id_count)
-                coord_str = block_until_received_response()["message"]
+                coord_str = block_until_received_response(client)["message"]
+                if coord_str == "quit":
+                    
+                    break
+                    
                 #response_id_count += 1
             
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Orientation? Enter 'H' (horizontal) or 'V' (vertical): ", response_id_count)
-                orientation_str = block_until_received_response()["message"]
+                orientation_str = block_until_received_response(client)["message"]
                 #response_id_count += 1
 
                 
@@ -332,22 +338,28 @@ def parse_coordinate(coord_str):
 #container to hold all this information about a particular game
 class GameState:
     def __init__(self):
-        self.player_1 = None
-        self.player_2 = None
+        #self.player_1 = None
+        #self.player_2 = None
+        self.players = []
         self.current_player = None
         self.waiting_player = None
         self.successful_turn = False
     
-    
+    '''
     def set_player_1(self, player_1):
         self.player_1 = player_1
     
     def set_player_2(self, player_2):
         self.player_2 = player_2
-
+    
+    
+    def set_players(self,players):
+        self.players = players
+    '''
     def set_current_and_waiting_player(self, current_player, waiting_player):
         self.current_player = current_player
         self.waiting_player = waiting_player
+        self.players = [self.current_player, self.waiting_player]
     
     def set_successful_turn(self, successful_turn):
         self.successful_turn = successful_turn
@@ -432,7 +444,7 @@ def play_game(game):
 
             ## Blocks this thread here until gets a response 
             game.current_player.send_packet_to_client("\nEnter coordinate to fire at (e.g. B5):", response_id_count)
-            guess = block_until_received_response()["message"]
+            guess = block_until_received_response(game.current_player)["message"]
             
         
             if guess.lower() == 'quit':
@@ -506,9 +518,6 @@ def setup_game(game):
     game.current_player.send_packet_to_client(message, False)
     game.waiting_player.send_packet_to_client(message, False)
     
-
-    
-
     #create boards for players
     game.current_player.set_board(Board(BOARD_SIZE))
     game.waiting_player.set_board(Board(BOARD_SIZE))
@@ -518,7 +527,7 @@ def setup_game(game):
 
             #ask if the players want random or manual ship placement 
             player.send_packet_to_client("\nWould you like random or manual ship placement? Send R or M respectively", response_id_count)
-            placement_mode = block_until_received_response()["message"]
+            placement_mode = block_until_received_response(player)["message"]
 
             try:
                 if placement_mode != "R" and placement_mode != "M":
@@ -533,16 +542,6 @@ def setup_game(game):
                 player.send_packet_to_client(f" Invalid input: {e}", False)    
 
                             
-
-    
-
-
-    #game.player_1.board.place_ships_randomly(SHIPS)
-    #game.player_2.board.place_ships_randomly(SHIPS)
-    #game.player_2.send_packet_to_client("Waiting for Player 1 to manual place their ships", False)
-    #game.player_1.board.place_ships_manually( game.player_1, SHIPS)
-    #game.player_1.send_packet_to_client("Waiting for Player 2 to manual place their ships", False)
-    #game.player_2.board.place_ships_manually( game.player_2, SHIPS)
 
 def setup(s):
 
@@ -640,7 +639,7 @@ def print_client_messages_to_console():
         else:
             break
 
-def block_until_received_response():
+def block_until_received_response(client):
     global running
     global history_in
     global response_id_count
@@ -648,15 +647,38 @@ def block_until_received_response():
     ############
     #acts as a "Block" to the current thread until we get a response from the user 
     
+    start_time = time.perf_counter()
+    
+
     while True:
         if running:
+            time.sleep(3)
+            
+            #Timeout functionality
+            if time.perf_counter() <= start_time + time_out_wait_time:
+                time_used = time.perf_counter() - start_time
+                countdown = time_out_wait_time - time_used
+                
+                client.send_packet_to_client(f"Countdown: {round(countdown)}", False)
 
-            #check if any of the packets have the matching response id
-            for packet in history_in:
-                if len(history_in)!= 0 and packet["response_id"] == response_id_count:
-                    response_id_count += 1
-                    return packet
+                print("countdown : " + str(countdown))
+            
 
+                #check if any of the packets have the matching response id
+                for packet in history_in:
+                    if len(history_in)!= 0 and packet["response_id"] == response_id_count:
+                        response_id_count += 1
+                        return packet
+            else:
+                client.send_packet_to_client(f"You have forfeited your game due to inactivity :(", False)
+                response_id_count += 1
+                
+                #make fake "quit" packet
+                quit_packet = {
+                    "message" : "quit",
+                }
+                        
+                return quit_packet
         else:
             break
     ############
@@ -684,22 +706,32 @@ def main():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
     setup(s)
     
+
+    #FROM HERE SHOULD BE A LOOP
+
+
     #Set up the game 
     game = GameState()
+    '''
     #set player 1 and player 2
     for connection in connections:
         if connection.player_num == 1:
             game.set_player_1(connection)
         if connection.player_num == 2:
             game.set_player_2(connection)
+    '''
+    
     #   Set current and waiting players
-    game.set_current_and_waiting_player(game.player_1, game.player_2)
+    game.set_current_and_waiting_player(connections[0], connections[1])
+    
 
 
     #create a listening thread for each player 
     #TODO make this a loop
-    listen_thread_player_1 = threading.Thread(target=listen_for_player_messages, args=(game.player_1,))
-    listen_thread_player_2 = threading.Thread(target=listen_for_player_messages, args=(game.player_2,))
+
+    #maybe i dont need a thread for each player
+    listen_thread_player_1 = threading.Thread(target=listen_for_player_messages, args=(game.players[0],))
+    listen_thread_player_2 = threading.Thread(target=listen_for_player_messages, args=(game.players[1],))
     listen_thread_player_1.start()
     listen_thread_player_2.start()
 
@@ -709,16 +741,18 @@ def main():
     #print("active threads: " + str(threading.active_count()))
 
 
+    # this needs to be another fucking loop
     setup_game(game)
-    result, player = play_game(game)
+    result, player_that_quit = play_game(game)
 
     if result == "win":
         pass
     elif result == "quit":
-        if player == game.player_1:
-            print(f"Player 1 quit the game, therefore Player 2 wins")
-        else: 
-            print(f"Player 1 quit the game, therefore Player 2 wins")
+        for player in game.players:
+            if player == player_that_quit:
+                player.send_packet_to_client("You Lost :(", None)
+            else:
+                player.send_packet_to_client("You Win :)", None)
 
     
     

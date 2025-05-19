@@ -36,8 +36,12 @@ def listen_for_server_messages(rfile):
     #reference to the global history_in variable
     global history_in
 
-    while True:
+    global response_id
 
+    global my_address_port
+
+    while True:
+        
         if running:
             #run 2 times per second 
             #I believe that the sleep call allows the threads to run at the same time 
@@ -52,14 +56,27 @@ def listen_for_server_messages(rfile):
                 running = False
                 break
             
+            #"unpack" the packet
             dict_packet = json.loads(packet)
 
+            #append the packet (dictionary) to the history
             history_in.append(dict_packet)
+
+            #print message of the new packet to the terminal
+            print(f"[Server]: {dict_packet['message']} \n")
+
+            #set the port 
+            my_address_port = dict_packet["to_addr"]
+            
+            #if the new packet is waiting for a response, set the response_id
+            if dict_packet["response_id"] != False:
+                response_id = dict_packet["response_id"]
         else:
             break
 
-def send_message_to_server(wfile, message, response_id):
-        global my_address
+def send_message_to_server(wfile, message):
+        global my_address_port
+        global response_id
 
         packet_dict = {
             "time" : time.time(),
@@ -89,6 +106,9 @@ def main():
     global my_address_port
     my_address_port = None
 
+    global response_id
+    response_id = False
+
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
     print("Connecting to server...")
@@ -107,53 +127,20 @@ def main():
     
     
     while True:
-            
+        
         if running:
                 
             time.sleep(0.1)
-            
-            if len(history_in) != 0:
-                
-                #read the most recent message from the server (if it hasnt been read )
-                recent_packet = history_in[-1] 
-                if recent_packet["read"] != True:
-                    print("[Server]: " + str(recent_packet["message"]))
-                    recent_packet["read"] = True
-                    my_address_port = recent_packet["to_addr"]
 
-                    if recent_packet["response_id"] != False:
-                        
-                        response_id = recent_packet["response_id"]
-                        response = input(">>")
-                        print("Sending to server: " + response)
-                        print("response_id: " + str(response_id))
-                        send_message_to_server(wfile,response, response_id)
-
+            response = input("")
+            print(f"Sending to server: {response}" )
             
+            send_message_to_server(wfile,response)
+
 
         else:
             break
             
-            
-            '''
-            print("\n\n")
-            print(f"Main client thread: {time.time()}")
-            print("\n")
-            print(history_in)
-
-            message = "message to server;"
-            packet_dict = {
-                "time" : time.time(),
-                "message" : message,
-                "checksum" : hash(time.time())
-            }
-
-            #"pack"  the packet into a json thing
-            packed = json.dumps(packet_dict) + "\n"
-            print("sent packet to Server ")
-            wfile.write(packed)
-            wfile.flush()
-            '''
             
 
         
