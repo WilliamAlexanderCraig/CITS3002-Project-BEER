@@ -113,8 +113,8 @@ def main():
     
     print("Connecting to server...")
     server.connect((HOST, PORT))
-    print("Successfully connected to server...")
-    print("Waiting for other player to connect...")
+    #print("Successfully connected to server...")
+    #print("Waiting for other player to connect...")
 
     rfile = server.makefile('r')
     wfile = server.makefile('w')

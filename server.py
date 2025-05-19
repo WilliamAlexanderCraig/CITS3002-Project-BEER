@@ -22,19 +22,18 @@ HOST = '127.0.0.1'
 PORT = 8081 #port 5000 was taken on my pc for some reason
 
 
-time_out_wait_time = 5 #seconds
+time_out_wait_time = 60 #seconds
 
-
+global connections
 connections = []
+
 
 
 ##############
 #Battleships stuff
 #############
-BOARD_SIZE = 10
-
 testing = True
-
+BOARD_SIZE = 10
 SHIPS = []
 if testing:
     SHIPS = [("Dinghy",1)]
@@ -121,14 +120,14 @@ class Board:
                 
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Enter starting coordinate (e.g. A1): ", response_id_count)
-                coord_str = block_until_received_response(client)["message"]
+                coord_str = block_until_received_response(client,0)["message"]
                 
                     
                 #response_id_count += 1
             
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Orientation? Enter 'H' (horizontal) or 'V' (vertical): ", response_id_count)
-                orientation_str = block_until_received_response(client)["message"]
+                orientation_str = block_until_received_response(client,0)["message"]
                 #response_id_count += 1
 
                 
@@ -366,7 +365,7 @@ class GameState:
 
 #Class to hold all data for each client 
 class Client: #this is renamed from "Player"
-    def __init__(self, connection, address, player_num):
+    def __init__(self, connection, address):
 
         #IP address and port of the client 
         self.address = address
@@ -379,8 +378,11 @@ class Client: #this is renamed from "Player"
         #   If player_num = 0 then the player is not playing 
         #   If player_num = 1 then the player is playing and is player 1 
         #   If player_num = 2 then the player is playing and is player 2 
-        self.player_num = player_num
+        self.player_name = ""
         self.board = None
+
+    def set_name(self,name):
+        self.player_name = name
 
     def set_board(self,board):
         self.board = board
@@ -442,7 +444,7 @@ def play_game(game):
 
             ## Blocks this thread here until gets a response 
             game.current_player.send_packet_to_client("\nEnter coordinate to fire at (e.g. B5):", response_id_count)
-            guess = block_until_received_response(game.current_player)["message"]
+            guess = block_until_received_response(game.current_player,0)["message"]
             
         
             if guess.lower() == 'quit':
@@ -506,13 +508,14 @@ def play_game(game):
 
             
         else:
+            
             return "not_running" , None
 
 def setup_game(game):
     global response_id_count
 
     #send welcome message
-    message = "Welcome to Online Single-Player Battleship! Try to sink all the ships. Type 'quit' to exit."
+    message = "Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit."
     game.current_player.send_packet_to_client(message, False)
     game.waiting_player.send_packet_to_client(message, False)
     
@@ -525,7 +528,7 @@ def setup_game(game):
 
             #ask if the players want random or manual ship placement 
             player.send_packet_to_client("\nWould you like random or manual ship placement? Send R or M respectively", response_id_count)
-            placement_mode = block_until_received_response(player)["message"]
+            placement_mode = block_until_received_response(player,0)["message"]
 
             try:
                 if placement_mode == "M":
@@ -553,9 +556,7 @@ def setup(s):
     ########
 
 
-    #s stands for socket 
-    print(f"[INFO] Server listening on {HOST}:{PORT}")
-    s.bind((HOST, PORT))
+    
     '''
     while True:
         try:
@@ -577,7 +578,7 @@ def setup(s):
         
         #wait until a player connects
         connection, client_addr = s.accept()
-        newPlayer = Client(connection, client_addr, player_connection) # make a new player object to store all the data about this connection
+        newPlayer = Client(connection, client_addr) # make a new player object to store all the data about this connection
         
         print(f"[INFO] Client {player_connection} connected from {client_addr}")
         
@@ -590,7 +591,7 @@ def setup(s):
         newPlayer.set_rw_files(rfile,wfile)
  
 
-def listen_for_player_messages(client):
+def listen_for_player_messages():
 #     """Continuously receive and display messages from the server"""
     #reference to the global running variable
     global running 
@@ -600,30 +601,31 @@ def listen_for_player_messages(client):
     while True:
         
         if running:
+            time.sleep(0.5)
+            for client in connections:
             #run 2 times per second 
             #I believe that the sleep call allows the threads to run at the same time 
-            time.sleep(0.5)
+            
 
-            #read the line and strip() to remove any whitespace
-            packet = client.rfile.readline().strip()
-            
-            #check if the connection is broken
-            if not packet:
-                print(f"Player {client.address} disconnected")
-                running = False
-                break
-            
-            #unpacks the packet
-            dict_packet = json.loads(packet)
+                #read the line and strip() to remove any whitespace
+                packet = client.rfile.readline().strip()
+                
+                #check if the connection is broken
+                if not packet:
+                    print(f"Player {client.address} disconnected")
+                    running = False
+                    break
+                
+                #unpacks the packet
+                dict_packet = json.loads(packet)
 
-            history_in.append(dict_packet)
-            
-            #print messages
-            print(f"[{dict_packet['from_addr']}]: {dict_packet['message']}  (r_id: {dict_packet['response_id']}) ")
-    
+                history_in.append(dict_packet)
+                
+                #print messages
+                print(f"[{dict_packet['from_addr']}]: {dict_packet['message']}  (r_id: {dict_packet['response_id']}) ")
+        
         else:
             break
-
 
 def print_client_messages_to_console():
     global running
@@ -644,7 +646,8 @@ def print_client_messages_to_console():
         else:
             break
 
-def block_until_received_response(client):
+
+def block_until_received_response(client, extra_time):
     global running
     global history_in
     global response_id_count
@@ -660,7 +663,7 @@ def block_until_received_response(client):
             time.sleep(1)
             
             #Timeout functionality
-            if time.perf_counter() <= start_time + time_out_wait_time:
+            if time.perf_counter() <= start_time + time_out_wait_time + extra_time:
                 time_used = time.perf_counter() - start_time
                 countdown = round(time_out_wait_time - time_used)
                 
@@ -689,7 +692,85 @@ def block_until_received_response(client):
             break
     ############
     
+def listen_for_new_connections(socket):
+    global running
+    global response_id_count
+    global connections
+    
+    while True:
+        if running:
+            time.sleep(0.5)
 
+            socket.listen(1) # open for 1 availiable connection
+
+            #wait until a player connects
+            connection, client_addr = socket.accept()
+
+            print(f"[INFO] New Client connected from {client_addr}")
+            
+            #set up new player object 
+            newClient = Client(connection, client_addr)
+            rfile = connection.makefile('r')
+            wfile = connection.makefile('w')
+            newClient.set_rw_files(rfile,wfile)
+
+            #Ask player for their name
+            #connections.append(newClient)
+            newClient.send_packet_to_client("\n HELLO! Please send your name", response_id_count)
+            packet = rfile.readline().strip()
+            dict_packet = json.loads(packet)
+            name = dict_packet["message"]
+            print(name)
+            newClient.send_packet_to_client(f"\n\n#####################\n\n WELCOME {name}\n YOU ARE IN THE WAITING ROOM \n\n#####################\n\n",False)
+            #newClient.send_packet_to_client(f"\n\n#####################\n\n YOU ARE IN THE WAITING ROOM \n\n#####################\n\n",False)
+            newClient.set_name(name)
+            connections.append(newClient)
+
+            #Append newClient to connections 
+            
+        else:
+            break
+
+
+def waiting_room(game):
+
+    global running
+    # Build out a message string, and then send to everyone in the waiting room every 5 seconds
+
+    while True:
+        if running:
+            time.sleep(5)
+
+            message = ""
+
+            message += str("\n\n#####################\n\n WAITING ROOM\n\n #####################\n\n")
+            message += str(f"\nPlayer 1 is {game.player_1.name}\n")
+            p1_board = str(game.player_1.board.get_string_display_grid(True)) #might need to be False KACHOW
+            message += str(f"\n {game.player_1.name}'s Board: \n\n {p1_board}\n")
+            message += str("\n\n #####################\n\n")
+            message += str(f"\nPlayer 2 is {game.player_2.name}\n")
+            p2_board = str(game.player_2.board.get_string_display_grid(True)) #might need to be False KACHOW
+            message += str(f"\n {game.player_2.name}'s Board: \n\n {p2_board}\n")
+            message += str("\n\n #####################\n\n")
+            message += str(f"Current turn : {game.current_player.name}")
+
+
+
+            for connection in connections:
+                connection.send_packet_to_client(message,False)
+                #if connection != game.player_1 and connection != game.player_2:
+                    
+
+        else:
+            break
+    
+
+
+
+    pass
+            
+
+    
 
 
 def main():
@@ -704,76 +785,112 @@ def main():
     global response_id_count
     response_id_count = 1
 
+    game = GameState()
+
+    #global connections
+    #connections = []
 
     ##################
     # Set up the socket and establish connections with clients
     ##################
     print("[INFO] Making Socket")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-    setup(s)
+    #s stands for socket 
+    print(f"[INFO] Server listening on {HOST}:{PORT}")
+    s.bind((HOST, PORT))
     
+    listening_for_connections_thread = threading.Thread(target=listen_for_new_connections, args=(s,))
+    listening_for_connections_thread.start()
+    
+    listen_for_player_messages_thread = threading.Thread(target=listen_for_player_messages)
+    listen_for_player_messages_thread.start()
+
+    waiting_room_thread = threading.Thread(target=waiting_room, args=(game,))
+    waiting_room_thread.start()
 
     #FROM HERE SHOULD BE A LOOP
-
-
-    #Set up the game 
-    game = GameState()
-    
-    #set player 1 and player 2
-    for connection in connections:
-        if connection.player_num == 1:
-            game.set_player_1(connection)
-        if connection.player_num == 2:
-            game.set_player_2(connection)
+    global connections
+    connections = []
+    while True:
+        #global connections
+        time.sleep(2)
+        print(connections)
     
     
-    #   Set current and waiting players
-    game.set_current_and_waiting_player(game.player_1, game.player_2)
     
-    if game.player_1 == None: 
-        print("Player1 = None")
-        return
-    if game.current_player == None: 
-        print("currentplayer = None")
-        return
-
-    #create a listening thread for each player 
-    #TODO make this a loop
-
-    #maybe i dont need a thread for each player
-    listen_thread_player_1 = threading.Thread(target=listen_for_player_messages, args=(game.player_1,))
-    listen_thread_player_2 = threading.Thread(target=listen_for_player_messages, args=(game.player_2,))
-    listen_thread_player_1.start()
-    listen_thread_player_2.start()
-
-    printing_client_messages_thread = threading.Thread(target=print_client_messages_to_console)
-    printing_client_messages_thread.start()
-
-    #print("active threads: " + str(threading.active_count()))
-
-
-    # this needs to be another fucking loop
     
-    if setup_game(game) == "QUIT":
-        running = False
-        print("a player quit")
-    result, current_player = play_game(game)
+    while False:
 
-    if result == "win":
-        for player in game.players:
-            if player == current_player:
-                player.send_packet_to_client("You Win :)", None)
-            else:
-                player.send_packet_to_client("You Lost :(", None)
-        
-    elif result == "quit":
-        for player in game.players:
-            if player == current_player:
-                player.send_packet_to_client("You Lost :(", None)
-            else:
-                player.send_packet_to_client("You Win :)", None)
+        if running:
 
-    running = False
+            #global connections
+
+            game = GameState()
+            
+            print("waiting for at least 2 clients")
+            print(connections)
+            time.sleep(5)
+
+            #check for at least 2 connections
+            #if 0 connection
+            if len(connections) == 0:
+                print("No Clients connected, Wait 5 seconds...")
+                continue
+                
+            #if 1 connection
+            if len(connections) == 1:
+                message = "1 Client connected, waiting for at least 2 clients, wait 5 seconds..."
+                print(message)
+                connections[0].send_packet_to_client(message,False)
+                continue
+            
+            #if exactly 2 players, then run game with 2 players
+            if len(connections) == 2:
+                message = "Exactly 2 players connected, Starting game with two players"
+                print(message)
+                connections[0].send_packet_to_client(message,False)
+                connections[1].send_packet_to_client(message,False)
+                
+                #set up the game
+                game.set_player_1(connections[0])
+                game.set_player_2(connections[1])
+
+                game.set_current_and_waiting_player(game.player_1, game.player_2)
+                
+                #play_game(game)
+
+
+                if setup_game(game) == "QUIT":
+                    running = False
+                    print("One of the players quit during the Setup Process")
+                    continue
+                
+                result, current_player = play_game(game)
+
+                if result == "win":
+                    for player in game.players:
+                        if player == current_player:
+                            player.send_packet_to_client("You Win :)", None)
+                        else:
+                            player.send_packet_to_client("You Lost :(", None)
+                
+                elif result == "quit":
+                    for player in game.players:
+                        if player == current_player:
+                            player.send_packet_to_client("You Lost :(", None)
+                        else:
+                            player.send_packet_to_client("You Win :)", None)
+
+            #Have some mechanism to choose the players 
+            if len(connections) >= 2:
+                pass
+            
+
+            
+        else:
+            break
+
+    #running = False
     
     
 
