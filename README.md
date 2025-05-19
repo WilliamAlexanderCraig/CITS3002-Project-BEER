@@ -14,3 +14,7 @@ Then open a diffrent terminal (ensuring it's in the same directory) and run a cl
 python client.py
 ```
 (You are encouraged to open at least 3 terminals with client.py running to inspect the gameplay feature and the waiting room/spectator feature)
+
+The game prompts will clearly outline what is happening in the game and instruct you on how to play it.
+
+Enjoy!!
