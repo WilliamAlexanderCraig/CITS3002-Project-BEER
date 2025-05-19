@@ -1,12 +1,16 @@
 # CITS3002-Project-BEER
 
-## Tier 1.1 
-Use threading library to implement 'concurrancy'
-- Create a thread that continuously reads and displays server messages
-- Keep the main thread for handling user input and sending commands
-
-For a complete solution, you'll also need to make the server handle multiple clients by accepting
-connections in a loop and processing each client in its own thread
-
-
-tier 2
+To run:
+Open a terminal and enter the file directory:
+'''
+cd 23180621_23775973_BEER
+'''
+Then, to start the server, enter the command:
+'''
+python server.py
+'''
+Then open a diffrent terminal (ensuring it's in the same directory) and run a client by entering:
+'''
+python client.py
+'''
+(You are encouraged to open at least 3 terminals with client.py running to inspect the gameplay feature and the waiting room/spectator feature)
