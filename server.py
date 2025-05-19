@@ -546,7 +546,7 @@ def setup_game(game):
     global response_id_count
 
     #send welcome message
-    message = "Welcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit."
+    message = "\n\n\n#####################################################\n\n\nWelcome to Online Dual-Player Battleship! Try to sink all the ships. Type 'quit' to exit.\n\n\n#####################################################\n\n\n"
     game.current_player.send_packet_to_client(message, False)
     game.waiting_player.send_packet_to_client(message, False)
     
