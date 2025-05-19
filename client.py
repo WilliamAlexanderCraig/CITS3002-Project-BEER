@@ -16,6 +16,8 @@ import threading
 HOST = '127.0.0.1'
 PORT = 8081
 
+refresh_rate = 10
+
 # HINT: The current problem is that the client is reading from the socket,
 # then waiting for user input, then reading again. This causes server
 # messages to appear out of order.
@@ -45,7 +47,7 @@ def listen_for_server_messages(rfile):
         if running:
             #run 2 times per second 
             #I believe that the sleep call allows the threads to run at the same time 
-            time.sleep(0.5)
+            time.sleep(0.5 / refresh_rate)
 
             #read the line and strip() to remove any whitespace
             packet = rfile.readline().strip()
@@ -130,7 +132,7 @@ def main():
         
         if running:
                 
-            time.sleep(0.1)
+            time.sleep(0.1 / refresh_rate)
 
             response = input("")
             print(f"Sending to server: {response}" )

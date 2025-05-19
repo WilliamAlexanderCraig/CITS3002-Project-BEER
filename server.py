@@ -22,7 +22,9 @@ HOST = '127.0.0.1'
 PORT = 8081 #port 5000 was taken on my pc for some reason
 
 
-time_out_wait_time = 60 #seconds
+time_out_wait_time = 20 #seconds
+
+refresh_rate = 20 #hertz
 
 global connections
 connections = []
@@ -110,6 +112,7 @@ class Board:
         for ship_name, ship_size in ships:
             while True:
 
+                time.sleep(1 / refresh_rate)
                 #print board
                 client.send_packet_to_client("\nThis is the state of your board", False)
                 board_string = client.board.get_string_display_grid(True)
@@ -341,7 +344,7 @@ class GameState:
         self.current_player = None
         self.waiting_player = None
         self.successful_turn = False
-    
+        self.is_playing = False
     
     def set_player_1(self, player_1):
         self.player_1 = player_1
@@ -422,10 +425,12 @@ def play_game(game):
     global history_in
     global response_id_count
 
+    game.is_playing = True
+
     while True: 
         #if the server is still running 
         if running:
-            time.sleep(0.01)
+            time.sleep(50 / refresh_rate)
 
             #THIS IS THE GAME LOGIC IN HERE 
             
@@ -450,8 +455,8 @@ def play_game(game):
             if guess.lower() == 'quit':
                 
                 game.current_player.send_packet_to_client("Thanks for playing. Goodbye.", False)
-                running = False
-                connections.remove(game.current_player)
+                #running = False
+                #connections.remove(game.current_player)
                 game.current_player = None
                 return "quit" , game.current_player
             
@@ -546,7 +551,7 @@ def setup_game(game):
                 player.send_packet_to_client(f" Invalid input: {e}", False)    
 
                             
-
+#no longer used
 def setup(s):
 
     ########
@@ -591,7 +596,7 @@ def setup(s):
         newPlayer.set_rw_files(rfile,wfile)
  
 
-def listen_for_player_messages():
+def listen_for_player_messages(client):
 #     """Continuously receive and display messages from the server"""
     #reference to the global running variable
     global running 
@@ -601,32 +606,33 @@ def listen_for_player_messages():
     while True:
         
         if running:
-            time.sleep(0.5)
-            for client in connections:
+            time.sleep(5 / refresh_rate)
+            
             #run 2 times per second 
             #I believe that the sleep call allows the threads to run at the same time 
             
 
-                #read the line and strip() to remove any whitespace
-                packet = client.rfile.readline().strip()
-                
-                #check if the connection is broken
-                if not packet:
-                    print(f"Player {client.address} disconnected")
-                    running = False
-                    break
-                
-                #unpacks the packet
-                dict_packet = json.loads(packet)
+            #read the line and strip() to remove any whitespace
+            packet = client.rfile.readline().strip()
+            
+            #check if the connection is broken
+            if not packet:
+                print(f"Player {client.address} disconnected")
+                #running = False
+                break
+            
+            #unpacks the packet
+            dict_packet = json.loads(packet)
 
-                history_in.append(dict_packet)
-                
-                #print messages
-                print(f"[{dict_packet['from_addr']}]: {dict_packet['message']}  (r_id: {dict_packet['response_id']}) ")
+            history_in.append(dict_packet)
+            
+            #print messages
+            print(f"[{dict_packet['from_addr']}]: {dict_packet['message']}  (r_id: {dict_packet['response_id']}) ")
         
         else:
             break
 
+#no longer used
 def print_client_messages_to_console():
     global running
     global history_in
@@ -634,7 +640,7 @@ def print_client_messages_to_console():
     while True:
         if running:
 
-            time.sleep(0.1)
+            time.sleep(10 / refresh_rate)
             if len(history_in) != 0:
                         
                 #read the most recent message from the server (if it hasnt been read )
@@ -660,7 +666,7 @@ def block_until_received_response(client, extra_time):
 
     while True:
         if running:
-            time.sleep(1)
+            time.sleep(10 / refresh_rate)
             
             #Timeout functionality
             if time.perf_counter() <= start_time + time_out_wait_time + extra_time:
@@ -670,7 +676,7 @@ def block_until_received_response(client, extra_time):
                 if countdown in [30,15,10,5,3,2,1]:
                     client.send_packet_to_client(f"Countdown: {countdown}", False)
 
-                print("countdown : " + str(countdown))
+                #print("countdown : " + str(countdown))
             
 
                 #check if any of the packets have the matching response id
@@ -699,7 +705,7 @@ def listen_for_new_connections(socket):
     
     while True:
         if running:
-            time.sleep(0.5)
+            time.sleep(100 / refresh_rate)
 
             socket.listen(1) # open for 1 availiable connection
 
@@ -726,6 +732,8 @@ def listen_for_new_connections(socket):
             newClient.set_name(name)
             connections.append(newClient)
 
+            listening_thread = threading.Thread(target=listen_for_player_messages, args=(newClient,))
+            listening_thread.start()
             #Append newClient to connections 
             
         else:
@@ -735,30 +743,49 @@ def listen_for_new_connections(socket):
 def waiting_room(game):
 
     global running
+    global connections
     # Build out a message string, and then send to everyone in the waiting room every 5 seconds
 
     while True:
+
+        print("WAITING ROOM ALIVE")
+        print(f"Connections : {connections}")
+
         if running:
-            time.sleep(5)
+            
+
+            time.sleep(100 / refresh_rate)
 
             message = ""
+            if game.is_playing== True:
+                
+                message += str("\n\n#####################\n\n WAITING ROOM\n\n #####################\n\n")
+                message += str(f"\nPlayer 1 is {game.player_1.player_name}\n")
+                #p1_board = str(game.player_1.board.get_string_display_grid(True)) #might need to be False KACHOW
+                #message += str(f"\n {game.player_1.name}'s Board: \n\n {p1_board}\n")
+                message += str("\n\n #####################\n\n")
+                message += str(f"\nPlayer 2 is {game.player_2.player_name}\n")
+                #p2_board = str(game.player_2.board.get_string_display_grid(True)) #might need to be False KACHOW
+                #message += str(f"\n {game.player_2.name}'s Board: \n\n {p2_board}\n")
+                message += str("\n\n #####################\n\n")
+                message += str(f"Current turn : {game.current_player.player_name}")
 
-            message += str("\n\n#####################\n\n WAITING ROOM\n\n #####################\n\n")
-            message += str(f"\nPlayer 1 is {game.player_1.name}\n")
-            p1_board = str(game.player_1.board.get_string_display_grid(True)) #might need to be False KACHOW
-            message += str(f"\n {game.player_1.name}'s Board: \n\n {p1_board}\n")
-            message += str("\n\n #####################\n\n")
-            message += str(f"\nPlayer 2 is {game.player_2.name}\n")
-            p2_board = str(game.player_2.board.get_string_display_grid(True)) #might need to be False KACHOW
-            message += str(f"\n {game.player_2.name}'s Board: \n\n {p2_board}\n")
-            message += str("\n\n #####################\n\n")
-            message += str(f"Current turn : {game.current_player.name}")
+                for connection in connections:
+                    if connection != game.player_1 and connection != game.player_2:
+                        connection.send_packet_to_client(message, False)
+                        print(f"sent packet to {connection}")
+            else:
+                message = "Waiting Room : No Current Game"
+                for connection in connections:
+                    
+                    connection.send_packet_to_client(message, False)
+                    print(f"sent packet to {connection}")
+            
 
 
 
-            for connection in connections:
-                connection.send_packet_to_client(message,False)
-                #if connection != game.player_1 and connection != game.player_2:
+            
+                
                     
 
         else:
@@ -785,6 +812,12 @@ def main():
     global response_id_count
     response_id_count = 1
 
+    global connections
+    connections = []
+
+    global waiting_room_list
+    waiting_room_list = []
+
     game = GameState()
 
     #global connections
@@ -802,24 +835,20 @@ def main():
     listening_for_connections_thread = threading.Thread(target=listen_for_new_connections, args=(s,))
     listening_for_connections_thread.start()
     
-    listen_for_player_messages_thread = threading.Thread(target=listen_for_player_messages)
-    listen_for_player_messages_thread.start()
+    #listen_for_player_messages_thread = threading.Thread(target=listen_for_player_messages)
+    #listen_for_player_messages_thread.start()
 
     waiting_room_thread = threading.Thread(target=waiting_room, args=(game,))
     waiting_room_thread.start()
 
-    #FROM HERE SHOULD BE A LOOP
-    global connections
-    connections = []
+    
+    
+    
+    
+    
+    
+    
     while True:
-        #global connections
-        time.sleep(2)
-        print(connections)
-    
-    
-    
-    
-    while False:
 
         if running:
 
@@ -829,17 +858,17 @@ def main():
             
             print("waiting for at least 2 clients")
             print(connections)
-            time.sleep(5)
+            time.sleep(2)
 
             #check for at least 2 connections
             #if 0 connection
             if len(connections) == 0:
-                print("No Clients connected, Wait 5 seconds...")
+                print("No Clients connected")
                 continue
                 
             #if 1 connection
             if len(connections) == 1:
-                message = "1 Client connected, waiting for at least 2 clients, wait 5 seconds..."
+                message = "1 Client connected, waiting for at least 2 clients"
                 print(message)
                 connections[0].send_packet_to_client(message,False)
                 continue
@@ -854,19 +883,20 @@ def main():
                 #set up the game
                 game.set_player_1(connections[0])
                 game.set_player_2(connections[1])
-
                 game.set_current_and_waiting_player(game.player_1, game.player_2)
                 
                 #play_game(game)
 
 
                 if setup_game(game) == "QUIT":
-                    running = False
+                    #running = False
                     print("One of the players quit during the Setup Process")
                     continue
                 
-                result, current_player = play_game(game)
+                play_game(game)
 
+                #result, current_player = play_game(game)
+                '''
                 if result == "win":
                     for player in game.players:
                         if player == current_player:
@@ -880,15 +910,54 @@ def main():
                             player.send_packet_to_client("You Lost :(", None)
                         else:
                             player.send_packet_to_client("You Win :)", None)
+                '''
+                
 
             #Have some mechanism to choose the players 
             if len(connections) >= 2:
-                pass
+
+                #choose 2 random players from the waiting room
+                temp = connections
+                p1 = random.select(temp)
+                temp.remove(p1)
+                p2 = random.select(temp)
+
+                message = "More than 2 Clients connected, selecting 2 random clients to play"
+                print(message)
+                for client in connections:
+                    client.send_packet_to_client(message,False)
+                    client.send_packet_to_client(f"Player 1: {p1.player_name}",False)
+                    client.send_packet_to_client(f"Player 2: {p2.player_name}",False)
+                
+                #set up the game
+                game.set_player_1(p1)
+                game.set_player_2(p2)
+                game.set_current_and_waiting_player(game.player_1, game.player_2)
+                
+                #play_game(game)
+
+
+                if setup_game(game) == "QUIT":
+                    #running = False
+                    print("One of the players quit during the Setup Process")
+                    continue
+                
+                play_game(game)
+
+                
+                
+
+                
+
+
+                
             
 
             
         else:
             break
+    
+        
 
     #running = False
     
