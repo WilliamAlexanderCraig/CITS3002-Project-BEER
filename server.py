@@ -747,7 +747,7 @@ def waiting_room():
     global connections
     global game
     # Build out a message string, and then send to everyone in the waiting room every 5 seconds
-
+    #chnages
     while True:
 
         print("WAITING ROOM ALIVE")
