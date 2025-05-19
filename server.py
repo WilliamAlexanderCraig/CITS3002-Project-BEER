@@ -133,7 +133,7 @@ class Board:
                 orientation_str = block_until_received_response(client,0)["message"]
                 #response_id_count += 1
 
-                
+                '''
                 try:
                     row, col, error_check = parse_coordinate(coord_str)
                 except ValueError as e:
@@ -147,6 +147,22 @@ class Board:
                     orientation = 1
                 else:
                     client.send_packet_to_client("  [!] Invalid orientation. Please enter 'H' or 'V'.", False)
+                    continue
+                '''
+                
+
+                try:
+                    row, col, error_check = parse_coordinate(coord_str)
+                    try:
+                        row, col, error_check = parse_coordinate(coord_str)
+                        if error_check == "ERROR":
+                            client.send_packet_to_client("  [!] Invalid coordinate. Please enter a valid coordinate (A-J, 1-10).", False)
+                            continue
+                    except ValueError as e:
+                        client.send_packet_to_client(f"  CASE 1 [!] Invalid coordinate: {e}", False)
+                        continue
+                except ValueError as e:
+                    client.send_packet_to_client(f"  CASE 1 [!] Invalid coordinate: {e}", False)
                     continue
 
                 # Check if we can place the ship
@@ -315,8 +331,13 @@ def parse_coordinate(coord_str):
     HINT: you might want to add additional input validation here...
     """
     coord_str = coord_str.strip().upper()
+    if len(coord_str) < 2:
+        return -1, -1, "ERROR"
     row_letter = coord_str[0]
     col_digits = coord_str[1:]
+
+    if not row_letter.isalpha() or not col_digits.isdigit():
+        return -1, -1, "ERROR"
 
     row = ord(row_letter) - ord('A')
     col = int(col_digits) - 1  # zero-based
@@ -324,10 +345,14 @@ def parse_coordinate(coord_str):
     #andrew will change 
 
     error_check = "ALL GOOD"
+    if row < 0 or row >= 10 or col < 0 or col >= 10:
+        return -1, -1, "ERROR"
+    else:
+        return row, col, "OK"
 
     #if row > J then error_check == "ERROR"
 
-    return row, col, error_check
+    
 
 
 ##############
