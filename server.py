@@ -22,7 +22,7 @@ HOST = '127.0.0.1'
 PORT = 8081 #port 5000 was taken on my pc for some reason
 
 
-time_out_wait_time = 20 #seconds
+time_out_wait_time = 60 #seconds
 
 refresh_rate = 1 
 
@@ -34,7 +34,7 @@ refresh_rate = 1
 ##############
 #Battleships stuff
 #############
-testing = True
+testing = False
 BOARD_SIZE = 10
 SHIPS = []
 if testing:
@@ -123,14 +123,14 @@ class Board:
                 
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Enter starting coordinate (e.g. A1): ", response_id_count)
-                coord_str = block_until_received_response(client,0)["message"]
+                coord_str = block_until_received_response(client,0)["message"].upper()
                 
                     
                 #response_id_count += 1
             
                 ## Blocks this thread here until gets a response 
                 client.send_packet_to_client("  Orientation? Enter 'H' (horizontal) or 'V' (vertical): ", response_id_count)
-                orientation_str = block_until_received_response(client,0)["message"]
+                orientation_str = block_until_received_response(client,0)["message"].upper()
                 #response_id_count += 1
 
                 '''
@@ -140,14 +140,7 @@ class Board:
                     client.send_packet_to_client(f" [!] Invalid coordinate: {e}", False)
                     continue
 
-                # Convert orientation_str to 0 (horizontal) or 1 (vertical)
-                if orientation_str == 'H':
-                    orientation = 0
-                elif orientation_str == 'V':
-                    orientation = 1
-                else:
-                    client.send_packet_to_client("  [!] Invalid orientation. Please enter 'H' or 'V'.", False)
-                    continue
+                
                 '''
                 
 
@@ -159,10 +152,19 @@ class Board:
                             client.send_packet_to_client("  [!] Invalid coordinate. Please enter a valid coordinate (A-J, 1-10).", False)
                             continue
                     except ValueError as e:
-                        client.send_packet_to_client(f"  CASE 1 [!] Invalid coordinate: {e}", False)
+                        client.send_packet_to_client(f"   [!] Invalid coordinate: {e}", False)
                         continue
                 except ValueError as e:
-                    client.send_packet_to_client(f"  CASE 1 [!] Invalid coordinate: {e}", False)
+                    client.send_packet_to_client(f"  [!] Invalid coordinate: {e}", False)
+                    continue
+
+                # Convert orientation_str to 0 (horizontal) or 1 (vertical)
+                if orientation_str == 'H':
+                    orientation = 0
+                elif orientation_str == 'V':
+                    orientation = 1
+                else:
+                    client.send_packet_to_client("  [!] Invalid orientation. Please enter 'H' or 'V'.", False)
                     continue
 
                 # Check if we can place the ship
@@ -559,7 +561,7 @@ def setup_game(game):
 
             #ask if the players want random or manual ship placement 
             player.send_packet_to_client("\nWould you like random or manual ship placement? Send R or M respectively", response_id_count)
-            placement_mode = block_until_received_response(player,0)["message"]
+            placement_mode = block_until_received_response(player,0)["message"].upper()
 
             try:
                 if placement_mode == "M":
@@ -569,58 +571,17 @@ def setup_game(game):
                     player.board.place_ships_randomly( SHIPS)
                     break
                 elif placement_mode == "QUIT":
-                    return "QUIT"
+                    return "QUIT" , game.current_player
                 else:
                     raise ValueError("You didnt send 'R' or 'M', Try again :)'")
                 
             except ValueError as e:
-                player.send_packet_to_client(f" Invalid input: {e}", False)    
+                player.send_packet_to_client(f" Invalid input: {e}", False)  
+
+    return "OK", game.current_player
 
                             
-#no longer used
-def setup(s):
 
-    ########
-    # This function currently waits for exactly 2 connections and assumes that both connections are players 
-    # later we will need to rewrite this to include the possibility of non-players (spectators)
-    # this function will likely have to be rewritten to be threaded 
-    ########
-
-
-    
-    '''
-    while True:
-        try:
-
-             # creates a pseudo server on this address
-            break
-        except:
-            print("didnt work, trying again in 5 seconds")
-            time.sleep(5)
-    '''
-    
-        
-    #loop to get connections
-    # Get 2 connections 
-    for player_connection in [1,2]:
-        
-        print(f"[INFO] Waiting for player {player_connection} connection")
-        s.listen(1) # open for 1 availiable connection
-        
-        #wait until a player connects
-        connection, client_addr = s.accept()
-        newPlayer = Client(connection, client_addr) # make a new player object to store all the data about this connection
-        
-        print(f"[INFO] Client {player_connection} connected from {client_addr}")
-        
-        #add this connection to the connections list
-        connections.append(newPlayer)
-        
-        
-        rfile = connection.makefile('r')
-        wfile = connection.makefile('w')
-        newPlayer.set_rw_files(rfile,wfile)
- 
 
 def listen_for_player_messages(client):
 #     """Continuously receive and display messages from the server"""
@@ -658,26 +619,6 @@ def listen_for_player_messages(client):
         else:
             break
 
-#no longer used
-def print_client_messages_to_console():
-    global running
-    global history_in
-    
-    while True:
-        if running:
-
-            time.sleep(0.1 * refresh_rate)
-            if len(history_in) != 0:
-                        
-                #read the most recent message from the server (if it hasnt been read )
-                recent_packet = history_in[-1] 
-                if recent_packet["read"] != True:
-                    from_addr = recent_packet["from_addr"]
-                    print(f"[{from_addr}]: " + str(recent_packet["message"]))
-                    recent_packet["read"] = True
-        else:
-            break
-
 
 def block_until_received_response(client, extra_time):
     global running
@@ -702,7 +643,7 @@ def block_until_received_response(client, extra_time):
                 if countdown in [5,3,2,1]:
                     client.send_packet_to_client(f"Countdown: {countdown}", False)
 
-                #print("countdown : " + str(countdown))
+               
             
 
                 #check if any of the packets have the matching response id
@@ -752,7 +693,7 @@ def listen_for_new_connections(socket):
             packet = rfile.readline().strip()
             dict_packet = json.loads(packet)
             name = dict_packet["message"]
-            print(name)
+            
             newClient.send_packet_to_client(f"\n\n#####################\n\n WELCOME {name}\n YOU ARE IN THE WAITING ROOM \n\n#####################\n\n",False)
             #newClient.send_packet_to_client(f"\n\n#####################\n\n YOU ARE IN THE WAITING ROOM \n\n#####################\n\n",False)
             newClient.set_name(name)
@@ -775,8 +716,7 @@ def waiting_room():
    
     while True:
 
-        print("WAITING ROOM ALIVE")
-        print(f"game.is_playing : {game.is_playing}")
+        
 
         if running:
             
@@ -867,7 +807,7 @@ def main():
             #wipe the gamestate
             game = GameState()
             
-            print("waiting for at least 2 clients")
+            print("Waiting for at least 2 clients")
             print(f"Connections: {connections}")
             time.sleep(2)
 
@@ -902,11 +842,24 @@ def main():
                 game.is_playing = True
                 game.player_1.playing = True
                 game.player_2.playing = True
-                if setup_game(game) == "QUIT":
+                result, current_player = setup_game(game)
+                if result == "QUIT":
                     #running = False
-                    print("One of the players quit during the Setup Process")
+                    print(f"Client {current_player.player_name} quit during setup")
                     game.player_1.playing = False
                     game.player_2.playing = False
+
+                    
+                    for player in game.players:
+                        if player == current_player:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU FORFEIT\n\n\n################################\n\n\n", None)
+                            connections.remove(player)
+                            player.connection.shutdown(socket.SHUT_RDWR)
+                            player.connection.close()
+                        else:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU WIN :)\n\n\n################################\n\n\n", None)
+                
+
                     continue
                 
                 result, current_player = play_game(game)
@@ -963,11 +916,24 @@ def main():
                 game.is_playing = True
                 game.player_1.playing = True
                 game.player_2.playing = True
-                if setup_game(game) == "QUIT":
+                result, current_player = setup_game(game)
+                if result == "QUIT":
                     #running = False
-                    print("One of the players quit during the Setup Process")
+                    print(f"Client {current_player.player_name} quit during setup")
                     game.player_1.playing = False
                     game.player_2.playing = False
+
+                    
+                    for player in game.players:
+                        if player == current_player:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU FORFEIT\n\n\n################################\n\n\n", None)
+                            connections.remove(player)
+                            player.connection.shutdown(socket.SHUT_RDWR)
+                            player.connection.close()
+                        else:
+                            player.send_packet_to_client("\n\n\n################################\n\n\nYOU WIN :)\n\n\n################################\n\n\n", None)
+                
+
                     continue
                 
                 result, current_player = play_game(game)
@@ -993,7 +959,7 @@ def main():
                         else:
                             player.send_packet_to_client("\n\n\n################################\n\n\nYOU WIN :)\n\n\n################################\n\n\n", None)
                 
-
+                
                 
                 
 
